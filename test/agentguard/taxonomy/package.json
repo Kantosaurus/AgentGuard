@@ -1,0 +1,42 @@
+{
+  "name": "ai-attack-validation",
+  "version": "1.0.0",
+  "description": "Attack validation test suite for the AI Attacks Taxonomy paper — 20+ attack categories with 100+ variants",
+  "author": "OpenClaw AI Research",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node run-all.js",
+    "test:quick": "node run-all.js --quick",
+    "attack:direct": "node attacks/01-direct-prompt-injection.js",
+    "attack:indirect": "node attacks/02-indirect-prompt-injection.js",
+    "attack:splitting": "node attacks/03-payload-splitting.js",
+    "attack:dan": "node attacks/04-dan-jailbreak.js",
+    "attack:encoding": "node attacks/05-encoding-tricks.js",
+    "attack:roleplay": "node attacks/06-roleplay-jailbreak.js",
+    "attack:manyshot": "node attacks/07-many-shot-jailbreak.js",
+    "attack:language": "node attacks/08-language-switching.js",
+    "attack:extraction": "node attacks/09-system-prompt-extraction.js",
+    "attack:flooding": "node attacks/10-context-window-flooding.js",
+    "attack:toolpoison": "node attacks/11-tool-poisoning.js",
+    "attack:agency": "node attacks/12-excessive-agency.js",
+    "attack:output": "node attacks/13-output-injection.js",
+    "attack:smuggling": "node attacks/14-token-smuggling.js",
+    "attack:emotional": "node attacks/15-emotional-manipulation.js",
+    "attack:multimodal": "node attacks/16-multi-modal-attacks.js",
+    "attack:rag": "node attacks/17-rag-poisoning.js",
+    "attack:prefix": "node attacks/18-prefix-injection.js",
+    "attack:skeleton": "node attacks/19-skeleton-key.js",
+    "attack:crescendo": "node attacks/20-crescendo.js",
+    "attack:refusal": "node attacks/21-refusal-suppression.js",
+    "attack:likert": "node attacks/22-bad-likert-judge.js",
+    "attack:autodan": "node attacks/23-autodan-gcg.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.21.0",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.4.7",
+    "openai": "^4.80.0"
+  }
+}
