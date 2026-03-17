@@ -12,13 +12,16 @@ class MambaSSM(nn.Module):
 
         self.state_dim = state_dim
 
-        # static A (diagonal in real Mamba)
-        self.A = nn.Parameter(torch.randn(state_dim))
+        # static A (diagonal, initialized negative for decay as in Mamba paper)
+        self.A = nn.Parameter(-torch.abs(torch.randn(state_dim)))
 
         # projections that generate dynamic parameters
         self.B_proj = nn.Linear(input_dim, state_dim)
         self.C_proj = nn.Linear(input_dim, state_dim)
         self.delta_proj = nn.Linear(input_dim, state_dim)
+
+        # project input to state_dim for element-wise multiplication with B
+        self.input_proj = nn.Linear(input_dim, state_dim)
 
         self.D = nn.Linear(input_dim, output_dim)
         self.out_proj = nn.Linear(state_dim, output_dim)
@@ -31,19 +34,21 @@ class MambaSSM(nn.Module):
         C = self.C_proj(u) # [Batch,Sequence,State_Dim]
         delta = F.softplus(self.delta_proj(u))
 
-        # diagonal state transition
-        A = torch.exp(delta * self.A) # [Batch,Sequence,State_Dim]
+        # diagonal state transition (clamp for numerical stability)
+        A = torch.exp((delta * self.A).clamp(-15, 15))  # [Batch,Sequence,State_Dim]
 
-        b = B * u.unsqueeze(-1)        # input contribution
+        b = B * self.input_proj(u)     # input contribution [B,L,state_dim]
 
-        # prefix product
-        A_prefix = torch.cumprod(A, dim=1)
+        # prefix product (use log-space for stability)
+        log_A = torch.log(A.clamp(min=1e-8))
+        log_A_cumsum = torch.cumsum(log_A, dim=1)
+        A_prefix = torch.exp(log_A_cumsum.clamp(-30, 30))
 
         # compute states
-        x = A_prefix * torch.cumsum(b / A_prefix, dim=1)
+        x = A_prefix * torch.cumsum(b / A_prefix.clamp(min=1e-8), dim=1)
 
-        # output
-        y = (C * x).sum(-1)
+        # output — project gated state back to output_dim
+        y = self.out_proj(C * x)  # [B, L, output_dim]
 
         return y
     
