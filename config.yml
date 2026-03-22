@@ -1,5 +1,5 @@
 data:
-  raw_data_dir: "data/dataset/agentguard-all-batches(1)"
+  raw_data_dir: "data/dataset/agentguard-all-batches"
   processed_dir: "data/processed"
   date: "2026-03-15"
   window_size: 30
@@ -31,7 +31,7 @@ data:
     - agent-20
   augmentation: "none"
   augmentation_prob: 0.0
-  class_weight_ratio: 1.0
+  class_weight_ratio: 3.7057417692693866
   k_folds: 5
   # Fixed split (used by train/eval modes as a single-run alternative to cv)
   train_agents:
@@ -59,32 +59,32 @@ data:
     - agent-20
 
 model:
-  d_model: 128
+  d_model: 64
   stream1_input_dim: 32
   stream2_input_dim: 28
-  mamba_layers: 3
+  mamba_layers: 1
   transformer_layers: 3
-  transformer_heads: 4
-  transformer_ff_dim: 512
-  latent_dim: 128
-  dropout: 0.1
-  fusion_strategy: "cross_attention"
+  transformer_heads: 8
+  transformer_ff_dim: 1024
+  latent_dim: 64
+  dropout: 0.05
+  fusion_strategy: "gated"
   cls_head_layers: 2
-  cls_head_hidden_dim: 64
-  cls_head_activation: "relu"
-  decoder_activation: "relu"
+  cls_head_hidden_dim: 256
+  cls_head_activation: "silu"
+  decoder_activation: "silu"
 
 training:
-  batch_size: 32
+  batch_size: 16
   epochs: 100
-  lr: 0.001
+  lr: 0.0005269507319882671
   max_grad_norm: 1.0
-  lambda_recon: 1.0
-  lambda_contrastive: 0.5
-  lambda_temporal: 0.1
+  lambda_recon: 1.81698223529472
+  lambda_contrastive: 1.3064087666290949
+  lambda_temporal: 0.19548651680073745
   early_stopping_patience: 10
-  optimizer: "adam"
-  weight_decay: 0.0
+  optimizer: "adamw"
+  weight_decay: 8.530804643772428e-05
   scheduler: "cosine"
 
 logging:

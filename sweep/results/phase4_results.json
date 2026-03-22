@@ -1,0 +1,109 @@
+[
+  {
+    "rank": 1,
+    "phase3_trial": 29,
+    "params": {
+      "lambda_recon": 1.8400030626029629,
+      "lambda_contrastive": 1.5033381567396014,
+      "lambda_temporal": 0.012587202790672297,
+      "seq_context": 8,
+      "augmentation": "none",
+      "class_weight_ratio": 2.456698237450765
+    },
+    "fold_aurocs": [
+      0.0,
+      0.10494880546075085,
+      0.0,
+      0.0,
+      0.09903201787043932
+    ],
+    "mean_auroc": 0.04079616466623803,
+    "std_auroc": 0.049999914147437284
+  },
+  {
+    "rank": 2,
+    "phase3_trial": 46,
+    "params": {
+      "lambda_recon": 0.8852639351038669,
+      "lambda_contrastive": 1.3523452630584776,
+      "lambda_temporal": 0.01079029384681559,
+      "seq_context": 4,
+      "augmentation": "time_jitter",
+      "class_weight_ratio": 4.410627958373678,
+      "augmentation_prob": 0.20747289317476614
+    },
+    "fold_aurocs": [
+      0.0,
+      0.10494880546075085,
+      0.0,
+      0.0,
+      0.09903201787043932
+    ],
+    "mean_auroc": 0.04079616466623803,
+    "std_auroc": 0.049999914147437284
+  },
+  {
+    "rank": 3,
+    "phase3_trial": 57,
+    "params": {
+      "lambda_recon": 1.8488730650644787,
+      "lambda_contrastive": 1.8931671542128836,
+      "lambda_temporal": 0.026275070970511776,
+      "seq_context": 4,
+      "augmentation": "none",
+      "class_weight_ratio": 3.4047923175518977
+    },
+    "fold_aurocs": [
+      0.0,
+      0.10494880546075085,
+      0.0,
+      0.0,
+      0.09903201787043932
+    ],
+    "mean_auroc": 0.04079616466623803,
+    "std_auroc": 0.049999914147437284
+  },
+  {
+    "rank": 4,
+    "phase3_trial": 11,
+    "params": {
+      "lambda_recon": 1.4082986552835082,
+      "lambda_contrastive": 1.2974750708583471,
+      "lambda_temporal": 0.010021806452726415,
+      "seq_context": 8,
+      "augmentation": "feature_mask",
+      "class_weight_ratio": 3.3963649717231186,
+      "augmentation_prob": 0.30739173816436066
+    },
+    "fold_aurocs": [
+      0.0,
+      0.10494880546075085,
+      0.0,
+      0.0,
+      0.09903201787043932
+    ],
+    "mean_auroc": 0.04079616466623803,
+    "std_auroc": 0.049999914147437284
+  },
+  {
+    "rank": 5,
+    "phase3_trial": 39,
+    "params": {
+      "lambda_recon": 1.8969578137090022,
+      "lambda_contrastive": 1.8467125860884699,
+      "lambda_temporal": 0.013948004497325915,
+      "seq_context": 4,
+      "augmentation": "none",
+      "class_weight_ratio": 1.985016578585341
+    },
+    "fold_aurocs": [
+      0.0,
+      0.10494880546075085,
+      0.0,
+      0.0,
+      0.09903201787043932
+    ],
+    "mean_auroc": 0.04079616466623803,
+    "std_auroc": 0.049999914147437284
+  }
+]

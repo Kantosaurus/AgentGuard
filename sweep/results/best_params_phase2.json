@@ -1,0 +1,7 @@
+{
+  "lr": 0.0025074805114836687,
+  "optimizer": "adam",
+  "scheduler": "onecycle",
+  "batch_size": 16,
+  "grad_clip": 1.0
+}
