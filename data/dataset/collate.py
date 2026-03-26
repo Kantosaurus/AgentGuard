@@ -26,6 +26,7 @@ def agentguard_collate(batch):
         "label": torch.stack([s["label"] for s in batch]),             # [B]
         "window_idx": torch.tensor([s["window_idx"] for s in batch], dtype=torch.long),  # [B]
         "agent_idx": torch.tensor([s["agent_idx"] for s in batch], dtype=torch.long),    # [B]
+        "agent_id": [s["agent_id"] for s in batch],
     }
 
 
