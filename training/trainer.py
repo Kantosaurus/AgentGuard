@@ -211,10 +211,6 @@ class AgentGuardTrainer:
                     raise optuna.TrialPruned()
 
             # Check for improvement
-            # if val_losses["total"] < best_val_loss:
-            # Check for improvement using AUROC
-            best_auroc = best_metrics.get("f1", 0.0)
-
             current_f1 = metrics["f1"]
             current_auroc = metrics["auroc"]
             if (current_f1 > best_f1) or (current_f1 == best_f1 and current_auroc > best_auroc):
