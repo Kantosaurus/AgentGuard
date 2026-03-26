@@ -177,20 +177,38 @@ def do_eval(config):
 
 # ── k-fold cross-validation ─────────────────────────────────────────────────
 
+# def make_stratified_folds(attacked_agents, control_agents, k):
+#     """Split agents into k folds, stratified by group (attacked vs control).
+#      original
+
+#     Each fold gets a proportional mix of attacked and control agents.
+#     Round-robin assignment within each group ensures balance.
+#     With 15 attacked + 5 control across 5 folds: each fold gets 3 attacked + 1 control.
+#     """
+#     folds = [[] for _ in range(k)]
+#     for i, agent in enumerate(attacked_agents):
+#         folds[i % k].append(agent)
+#     for i, agent in enumerate(control_agents):
+#         folds[i % k].append(agent)
+#     return folds
+
 def make_stratified_folds(attacked_agents, control_agents, k):
-    """Split agents into k folds, stratified by group (attacked vs control).
-
-    Each fold gets a proportional mix of attacked and control agents.
-    Round-robin assignment within each group ensures balance.
-    With 15 attacked + 5 control across 5 folds: each fold gets 3 attacked + 1 control.
     """
-    folds = [[] for _ in range(k)]
-    for i, agent in enumerate(attacked_agents):
-        folds[i % k].append(agent)
-    for i, agent in enumerate(control_agents):
-        folds[i % k].append(agent)
-    return folds
+    Tier-aware fold assignment.
+    Assumes attacked_agents ordered: Tier1 first (1-5), Tier2 (6-8), Tier3 (9-15).
+    """
+    tier1 = attacked_agents[:5]   # agents 1-5,  ~100 anomalies each
+    tier2 = attacked_agents[5:8]  # agents 6-8,  ~21 anomalies each
+    tier3 = attacked_agents[8:]   # agents 9-15, ~13 anomalies each
 
+    folds = [[] for _ in range(k)]
+
+    # Round-robin within each tier independently
+    for tier in [tier1, tier2, tier3, control_agents]:
+        for i, agent in enumerate(tier):
+            folds[i % k].append(agent)
+
+    return folds
 
 def do_cv(config):
     data_cfg = config["data"]
@@ -322,14 +340,183 @@ def do_cv(config):
     return fold_results
 
 
+def evaluate_per_agent(scores, labels, agent_ids, threshold=0.5):
+    import numpy as np
+    from collections import defaultdict
+    from sklearn.metrics import (
+        accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+    )
+    """
+    Compute metrics per agent.
+
+    Args:
+        scores: np.array of anomaly scores
+        labels: np.array of true labels
+        agent_ids: list of agent IDs (strings)
+        threshold: threshold for binary prediction
+
+    Returns:
+        dict mapping agent_id -> metrics dict
+    """
+    # Convert scores to binary predictions
+    preds = (scores >= threshold).astype(int)
+
+    # Group by agent
+    agent_data = defaultdict(lambda: {"labels": [], "preds": []})
+    for agent, label, pred in zip(agent_ids, labels, preds):
+        agent_data[agent]["labels"].append(label)
+        agent_data[agent]["preds"].append(pred)
+
+    # Compute metrics per agent
+    agent_metrics = {}
+    for agent, data in agent_data.items():
+        y_true = np.array(data["labels"])
+        y_pred = np.array(data["preds"])
+        cm = confusion_matrix(y_true, y_pred)
+        metrics = {
+            "num_samples": len(y_true),
+            "num_normal": int((y_true == 0).sum()),
+            "num_anomaly": int((y_true == 1).sum()),
+            "accuracy": accuracy_score(y_true, y_pred),
+            "precision": precision_score(y_true, y_pred, zero_division=0),
+            "recall": recall_score(y_true, y_pred, zero_division=0),
+            "f1": f1_score(y_true, y_pred, zero_division=0),
+            "confusion_matrix": cm,
+        }
+        agent_metrics[agent] = metrics
+
+    return agent_metrics
+
+
+def test_trained_model(test_config, weights_config):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+
+    model = build_model(weights_config)
+
+    ckpt_path = test_config["inference"]["checkpoint_path"]
+    checkpoint = torch.load(ckpt_path, map_location=device)
+
+    if "model_state_dict" in checkpoint:
+        model.load_state_dict(checkpoint["model_state_dict"])
+    else:
+        model.load_state_dict(checkpoint)
+
+    model.to(device)
+    model.eval()
+
+    print(f"Loaded weights from: {ckpt_path}")
+
+    data_cfg = test_config["data"]
+
+    test_ds = AgentGuardDataset(
+        data_cfg["processed_dir"],
+        data_cfg["test_agents"],
+        seq_context=weights_config["data"]["seq_context"],
+        normalize=False,
+    )
+
+    # Get Normalization Stats from training agent
+    train_agents = test_config["data"]["train_agents"]
+    train_ds = AgentGuardDataset(
+        data_cfg["processed_dir"],
+        train_agents,
+        seq_context=weights_config["data"]["seq_context"],
+        normalize=True,  # we want to compute mean/std
+    )
+
+    # get mean and std from the training dataset
+    train_mean, train_std = train_ds.get_normalization_stats()
+    test_ds.set_normalization_stats(train_mean, train_std)
+
+    test_loader = DataLoader(
+        test_ds,
+        batch_size=test_config["inference"].get("batch_size", 32),
+        shuffle=False,
+        collate_fn=agentguard_collate,
+    )
+
+    print(f"Test samples: {len(test_ds)}")
+
+    # -----------------------------
+    # 5. Run inference
+    # -----------------------------
+    all_scores = []
+    all_labels = []
+    all_agent_ids = []
+
+    with torch.no_grad():
+        for batch in test_loader:
+            # Move only tensors to device
+            batch = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in batch.items()}
+            outputs = model(batch["stream1"], batch["stream2_seq"], batch["stream2_mask"])
+            all_scores.append(outputs["anomaly_score"].squeeze(-1).cpu())
+            all_labels.append(batch["label"].cpu())
+            all_agent_ids.extend(batch["agent_id"])
+
+    all_scores = torch.cat(all_scores).numpy()
+    all_labels = torch.cat(all_labels).numpy()
+
+    print("Inference complete")
+
+    return all_scores, all_labels, all_agent_ids
+
+
+def write_test_results_md(per_agent_metrics, overall_metrics, output_file="test_results.md"):
+    """
+    Write per-agent and overall test results into a Markdown file.
+
+    Args:
+        per_agent_metrics (dict): Dictionary of per-agent metrics.
+        overall_metrics (dict): Dictionary of overall metrics.
+        output_file (str): Path to the output Markdown file.
+    """
+    import os
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write("# Test Results\n\n")
+
+        # Per-agent metrics
+        f.write("## Per-Agent Performance\n\n")
+        for agent, metrics in per_agent_metrics.items():
+            f.write(f"### Agent: {agent}\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            for k, v in metrics.items():
+                if k == "confusion_matrix":
+                    cm = v.tolist() if hasattr(v, "tolist") else v
+                    cm_str = f"<pre>{cm}</pre>"
+                    f.write(f"| {k} | {cm_str} |\n")
+                else:
+                    f.write(f"| {k} | {v} |\n")
+            f.write("\n")
+
+        # Overall metrics
+        f.write("## Overall Performance\n\n")
+        f.write("| Metric | Value |\n")
+        f.write("|--------|-------|\n")
+        for k, v in overall_metrics.items():
+            if k == "confusion_matrix":
+                cm = v.tolist() if hasattr(v, "tolist") else v
+                cm_str = f"<pre>{cm}</pre>"
+                f.write(f"| {k} | {cm_str} |\n")
+            else:
+                f.write(f"| {k} | {v} |\n")
+
+    print(f"Results written to {os.path.abspath(output_file)}")
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="AgentGuard training pipeline")
     parser.add_argument("--mode", required=True,
-                        choices=["preprocess", "train", "eval", "cv"],
+                        choices=["preprocess", "train", "eval", "cv", "test"],
                         help="Pipeline mode: preprocess, train, eval, or cv")
     parser.add_argument("--config", default="config.yml", help="Path to config file")
+    parser.add_argument("--weights_config",
+        default="config.yml",
+        help="Path to training config (for model architecture)"
+    )
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -342,6 +529,36 @@ def main():
         do_eval(config)
     elif args.mode == "cv":
         do_cv(config)
+    
+    elif args.mode == "test":
+        if args.weights_config is None:
+            raise ValueError("You must provide --weights_config for test mode")
+
+        test_config = config
+        weights_config = load_config(args.weights_config)
+
+        # Run inference
+        scores, labels, agent_ids = test_trained_model(test_config, weights_config)
+
+        per_agent_metrics = evaluate_per_agent(scores, labels, agent_ids, threshold=0.5)
+
+        threshold = 0.5
+        overall_preds = (scores >= threshold).astype(int)
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+        overall_metrics = {
+            "num_samples": len(labels),
+            "num_normal": int((labels == 0).sum()),
+            "num_anomaly": int((labels == 1).sum()),
+            "accuracy": accuracy_score(labels, overall_preds),
+            "precision": precision_score(labels, overall_preds, zero_division=0),
+            "recall": recall_score(labels, overall_preds, zero_division=0),
+            "f1": f1_score(labels, overall_preds, zero_division=0),
+            "confusion_matrix": confusion_matrix(labels, overall_preds),
+        }
+        output_file="results.md"
+        write_test_results_md(per_agent_metrics, overall_metrics, output_file=output_file)
+
+        print(f"Saved Results in Markdown file: {output_file}")
 
 
 if __name__ == "__main__":
