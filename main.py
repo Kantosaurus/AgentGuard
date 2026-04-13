@@ -504,10 +504,25 @@ def write_test_results_md(per_agent_metrics, overall_metrics, output_file="test_
 
     print(f"Results written to {os.path.abspath(output_file)}")
 
+def set_global_seed(seed: int = 42):
+    import random
+    import numpy as np
+    # Python
+    random.seed(seed)
+
+    # NumPy
+    np.random.seed(seed)
+
+    # PyTorch
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    print(f"Global seed set to {seed}")
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def main():
+    set_global_seed(42)
     parser = argparse.ArgumentParser(description="AgentGuard training pipeline")
     parser.add_argument("--mode", required=True,
                         choices=["preprocess", "train", "eval", "cv", "test"],

@@ -89,7 +89,10 @@ class AgentGuardTrainer:
         num_batches = 0
 
         for batch in self.train_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
 
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
@@ -122,7 +125,10 @@ class AgentGuardTrainer:
         all_labels = []
 
         for batch in self.val_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
 
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
@@ -268,7 +274,10 @@ class AgentGuardTrainer:
         all_labels = []
 
         for batch in test_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
             )
