@@ -1,0 +1,78 @@
+AgentGuard/  # Root directory of the AgentGuard anomaly detection project
+├── data/  # Data processing and dataset management
+│   ├── __init__.py  # Python package initialization
+│   ├── preprocessing.py  # Data preprocessing pipeline from JSONL to PyTorch tensors
+│   ├── dataset/  # PyTorch dataset implementations
+│   │   ├── __init__.py  # Package initialization
+│   │   ├── collate.py  # Data collation utilities for batching
+│   │   └── telemetry_dataset.py  # Main dataset class for agent telemetry data
+│   └── processed/  # Preprocessed data storage
+│       ├── agent-1.pt  # Preprocessed data for agent 1
+│       ├── agent-2.pt  # Preprocessed data for agent 2
+│       ├── agent-3.pt  # Preprocessed data for agent 3
+│       ├── agent-4.pt  # Preprocessed data for agent 4
+│       ├── agent-5.pt  # Preprocessed data for agent 5
+│       ├── agent-6.pt  # Preprocessed data for agent 6
+│       ├── agent-7.pt  # Preprocessed data for agent 7
+│       ├── agent-8.pt  # Preprocessed data for agent 8
+│       ├── agent-9.pt  # Preprocessed data for agent 9
+│       ├── agent-10.pt  # Preprocessed data for agent 10
+│       ├── agent-11.pt  # Preprocessed data for agent 11
+│       ├── agent-12.pt  # Preprocessed data for agent 12
+│       ├── agent-13.pt  # Preprocessed data for agent 13
+│       ├── agent-14.pt  # Preprocessed data for agent 14
+│       ├── agent-15.pt  # Preprocessed data for agent 15
+│       ├── agent-16.pt  # Preprocessed data for agent 16
+│       ├── agent-17.pt  # Preprocessed data for agent 17
+│       ├── agent-18.pt  # Preprocessed data for agent 18
+│       ├── agent-19.pt  # Preprocessed data for agent 19
+│       ├── agent-20.pt  # Preprocessed data for agent 20
+│       └── checkpoints/  # Trained model checkpoints storage
+├── docs/  # Documentation files
+│   └── data-collection-infrastructure.md  # Documentation on data collection setup
+├── models/  # Neural network model implementations
+│   ├── __init__.py  # Package initialization
+│   ├── agentguard.py  # Main AgentGuard model architecture
+│   ├── fusion.py  # Cross-attention fusion module
+│   ├── mamba.py  # Mamba sequence modeling implementation
+│   ├── s4.py  # S4 state space model implementation
+│   ├── stream1_encoder.py  # Encoder for telemetry stream (Mamba-based)
+│   └── stream2_encoder.py  # Encoder for action stream (Transformer-based)
+├── sweep/  # Hyperparameter optimization
+│   ├── __init__.py  # Package initialization
+│   ├── analysis.py  # Analysis of sweep results
+│   ├── config_override.py  # Configuration override utilities
+│   ├── ensemble.py  # Ensemble model utilities
+│   ├── objective.py  # Optuna objective function
+│   ├── run_sweep.py  # Sweep execution script
+│   ├── search_space.py  # Hyperparameter search space definition
+│   └── results/  # Sweep results storage
+│       └── best_params_phase1.json  # Best hyperparameters from phase 1
+├── training/  # Training utilities and logic
+│   ├── __init__.py  # Package initialization
+│   ├── losses.py  # Loss function implementations
+│   └── trainer.py  # Training loop and logic
+├── utils/  # Utility functions
+│   ├── __init__.py  # Package initialization
+│   ├── apply_best_params.py  # Apply best parameters from sweep
+│   ├── discretization.py  # Data discretization utilities
+│   └── logging.py  # Logging utilities
+├── agentguard_analysis.ipynb  # Jupyter notebook for data analysis
+├── clean.py  # Data cleaning utilities
+├── config_best.yml  # Best configuration parameters
+├── config.yml  # Main configuration file
+├── eda.ipynb  # Exploratory data analysis notebook
+├── folder.tree  # This file - project structure overview
+├── main.py  # CLI entry point for training and evaluation
+├── model_training_evaluation.ipynb  # Training and evaluation notebook
+├── README.md  # Project documentation
+├── report.md  # Project report for submission
+├── requirements.txt  # Python dependencies
+├── results_fold1.md  # Cross-validation results for fold 1
+├── results_fold2.md  # Cross-validation results for fold 2
+├── results_fold3.md  # Cross-validation results for fold 3
+├── results_fold4.md  # Cross-validation results for fold 4
+├── results_fold5.md  # Cross-validation results for fold 5
+├── results.md  # Main results summary
+├── test_config.yml  # Test configuration
+└── test_results.md  # Test evaluation results
