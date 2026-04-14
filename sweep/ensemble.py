@@ -132,38 +132,56 @@ def train_and_collect(base_config, configs, train_agents, test_agents, device):
 
 
 def ensemble_evaluate(predictions, labels, val_aurocs):
-    """Evaluate ensemble strategies: average, weighted average, majority vote."""
-    from sklearn.metrics import roc_auc_score, average_precision_score, f1_score
+    """Evaluate ensemble strategies: average, weighted average, majority vote
+    with threshold tuned for best F1.
+    """
+    from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, precision_recall_curve
+    import numpy as np
+
+    def find_best_threshold(scores, labels):
+        """Find threshold that maximizes F1 score"""
+        precision, recall, thresholds = precision_recall_curve(labels, scores)
+        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-8)
+        best_idx = np.argmax(f1_scores)
+        best_thresh = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
+        best_f1 = f1_scores[best_idx]
+        return best_thresh, best_f1
 
     preds_stack = np.stack(predictions)  # [K, N]
-
     results = {}
 
-    # Simple averaging
+    # ----- Simple averaging -----
     avg_scores = preds_stack.mean(axis=0)
-    avg_preds = (avg_scores >= 0.5).astype(int)
+    best_thresh, best_f1 = find_best_threshold(avg_scores, labels)
+    avg_preds = (avg_scores >= best_thresh).astype(int)
     results["average"] = {
         "auroc": float(roc_auc_score(labels, avg_scores)),
         "auprc": float(average_precision_score(labels, avg_scores)),
-        "f1": float(f1_score(labels, avg_preds, zero_division=0)),
+        "f1": float(best_f1),
+        "threshold": float(best_thresh),
     }
 
-    # Weighted averaging (by validation AUROC)
+    # ----- Weighted averaging (by validation AUROC) -----
     weights = np.array(val_aurocs)
     weights = weights / weights.sum()
     weighted_scores = (preds_stack * weights[:, None]).sum(axis=0)
-    weighted_preds = (weighted_scores >= 0.5).astype(int)
+    best_thresh, best_f1 = find_best_threshold(weighted_scores, labels)
+    weighted_preds = (weighted_scores >= best_thresh).astype(int)
     results["weighted_average"] = {
         "auroc": float(roc_auc_score(labels, weighted_scores)),
         "auprc": float(average_precision_score(labels, weighted_scores)),
-        "f1": float(f1_score(labels, weighted_preds, zero_division=0)),
+        "f1": float(best_f1),
+        "threshold": float(best_thresh),
     }
 
-    # Majority voting
-    binary_preds = (preds_stack >= 0.5).astype(int)
-    majority = (binary_preds.mean(axis=0) >= 0.5).astype(int)
+    # ----- Majority voting -----
+    binary_preds = (preds_stack >= 0.5).astype(int)  # individual model votes
+    majority_scores = binary_preds.mean(axis=0)     # fraction of models voting positive
+    best_thresh, best_f1 = find_best_threshold(majority_scores, labels)
+    majority_preds = (majority_scores >= best_thresh).astype(int)
     results["majority_vote"] = {
-        "f1": float(f1_score(labels, majority, zero_division=0)),
+        "f1": float(best_f1),
+        "threshold": float(best_thresh),
     }
 
     return results

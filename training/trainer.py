@@ -89,7 +89,10 @@ class AgentGuardTrainer:
         num_batches = 0
 
         for batch in self.train_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
 
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
@@ -122,7 +125,10 @@ class AgentGuardTrainer:
         all_labels = []
 
         for batch in self.val_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
 
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
@@ -174,7 +180,8 @@ class AgentGuardTrainer:
         best_val_loss = float("inf")
         best_metrics = {"auroc": 0.0, "auprc": 0.0, "f1": 0.0, "precision": 0.0, "recall": 0.0}
         epochs_without_improvement = 0
-
+        best_f1 = 0.0
+        best_auroc = 0.0
         for epoch in range(1, self.epochs + 1):
             train_losses = self.train_epoch()
             val_losses, metrics = self.validate()
@@ -210,8 +217,12 @@ class AgentGuardTrainer:
                     raise optuna.TrialPruned()
 
             # Check for improvement
-            if val_losses["total"] < best_val_loss:
-                best_val_loss = val_losses["total"]
+            current_f1 = metrics["f1"]
+            current_auroc = metrics["auroc"]
+            if (current_f1 > best_f1) or (current_f1 == best_f1 and current_auroc > best_auroc):
+                best_f1 = current_f1
+                best_auroc = current_auroc
+                # best_val_loss = val_losses["total"]
                 best_metrics = metrics.copy()
                 epochs_without_improvement = 0
 
@@ -223,7 +234,8 @@ class AgentGuardTrainer:
                     "val_loss": best_val_loss,
                     "metrics": best_metrics,
                 }, self.checkpoint_path)
-                save_msg = f"  -> Saved best model (val_loss={best_val_loss:.4f}, auroc={best_metrics['auroc']:.4f})"
+                # save_msg = f"  -> Saved best model (val_loss={best_val_loss:.4f}, auroc={best_metrics['auroc']:.4f})"
+                save_msg = f"  -> Saved best model (F1={best_metrics['f1']:.4f})"
                 print(save_msg)
                 self._log(save_msg)
             else:
@@ -235,7 +247,8 @@ class AgentGuardTrainer:
                     self._log(es_msg)
                     break
 
-        print(f"\nTraining complete. Best val_loss: {best_val_loss:.4f}")
+        # print(f"\nTraining complete. Best val_loss: {best_val_loss:.4f}")
+        print(f"\nTraining complete. Best F1: {best_metrics['f1']:.4f}")
         print(f"Best metrics: {best_metrics}")
         print(f"Best model saved to: {self.checkpoint_path}")
 
@@ -261,7 +274,10 @@ class AgentGuardTrainer:
         all_labels = []
 
         for batch in test_loader:
-            batch = {k: v.to(self.device) for k, v in batch.items()}
+            batch = {
+                k: (v.to(self.device) if torch.is_tensor(v) else v)
+                for k, v in batch.items()
+            }
             outputs = self.model(
                 batch["stream1"], batch["stream2_seq"], batch["stream2_mask"]
             )

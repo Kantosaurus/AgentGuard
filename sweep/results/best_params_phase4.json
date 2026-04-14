@@ -1,0 +1,8 @@
+{
+  "lambda_recon": 1.8400030626029629,
+  "lambda_contrastive": 1.5033381567396014,
+  "lambda_temporal": 0.012587202790672297,
+  "seq_context": 8,
+  "augmentation": "none",
+  "class_weight_ratio": 2.456698237450765
+}

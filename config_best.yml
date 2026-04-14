@@ -1,0 +1,87 @@
+data:
+  attacked_agents:
+  - agent-1
+  - agent-2
+  - agent-3
+  - agent-4
+  - agent-5
+  - agent-6
+  - agent-7
+  - agent-8
+  - agent-9
+  - agent-10
+  - agent-11
+  - agent-12
+  - agent-13
+  - agent-14
+  - agent-15
+  augmentation: "none"
+  augmentation_prob: 0.0
+  class_weight_ratio: 2.456698237450765
+  control_agents:
+  - agent-16
+  - agent-17
+  - agent-18
+  - agent-19
+  - agent-20
+  date: '2026-03-15'
+  k_folds: 5
+  max_seq_len: 64
+  processed_dir: "data/processed"
+  raw_data_dir: "data/dataset/agentguard-all-batches"
+  seq_context: 8
+  test_agents:
+  - agent-13
+  - agent-14
+  - agent-15
+  - agent-20
+  train_agents:
+  - agent-1
+  - agent-2
+  - agent-3
+  - agent-4
+  - agent-5
+  - agent-6
+  - agent-7
+  - agent-8
+  - agent-9
+  - agent-10
+  - agent-16
+  - agent-17
+  - agent-18
+  val_agents:
+  - agent-11
+  - agent-12
+  - agent-19
+  window_size: 30
+logging:
+  enabled: true
+  log_dir: "logs"
+  save_epoch_csv: true
+model:
+  cls_head_activation: "gelu"
+  cls_head_hidden_dim: 32
+  cls_head_layers: 1
+  d_model: 128
+  decoder_activation: "gelu"
+  dropout: 0.3
+  fusion_strategy: "cross_attention"
+  latent_dim: 256
+  mamba_layers: 4
+  stream1_input_dim: 32
+  stream2_input_dim: 28
+  transformer_ff_dim: 1024
+  transformer_heads: 8
+  transformer_layers: 1
+training:
+  batch_size: 16
+  early_stopping_patience: 10
+  epochs: 100
+  lambda_contrastive: 1.5033381567396014
+  lambda_recon: 1.8400030626029629
+  lambda_temporal: 0.012587202790672297
+  lr: 0.0025074805114836687
+  max_grad_norm: 1.0
+  optimizer: "adam"
+  scheduler: "onecycle"
+  weight_decay: 8.530804643772428e-05
