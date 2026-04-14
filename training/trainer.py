@@ -38,6 +38,7 @@ class AgentGuardTrainer:
             lambda_recon=training_cfg["lambda_recon"],
             lambda_contrastive=training_cfg["lambda_contrastive"],
             lambda_temporal=training_cfg["lambda_temporal"],
+            lambda_cls=training_cfg.get("lambda_cls", 1.0),
             class_weight_ratio=config.get("data", {}).get("class_weight_ratio", 1.0),
         )
 
@@ -85,7 +86,7 @@ class AgentGuardTrainer:
     def train_epoch(self):
         """Run one training epoch. Returns average loss dict."""
         self.model.train()
-        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "total": 0}
+        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "cls": 0, "total": 0}
         num_batches = 0
 
         for batch in self.train_loader:
@@ -121,7 +122,7 @@ class AgentGuardTrainer:
     def validate(self):
         """Run validation. Returns (avg_loss_dict, auroc)."""
         self.model.eval()
-        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "total": 0}
+        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "cls": 0, "total": 0}
         num_batches = 0
 
         all_scores = []
@@ -220,10 +221,12 @@ class AgentGuardTrainer:
                     import optuna
                     raise optuna.TrialPruned()
 
-            # Check for improvement
+            # Check for improvement: prefer AUROC (stable discriminator quality)
+            # over F1 (which can be dominated by degenerate "predict-all-anomalous"
+            # epoch-1 models due to class imbalance).
             current_f1 = metrics["f1"]
             current_auroc = metrics["auroc"]
-            if (current_f1 > best_f1) or (current_f1 == best_f1 and current_auroc > best_auroc):
+            if current_auroc > best_auroc:
                 best_f1 = current_f1
                 best_auroc = current_auroc
                 # best_val_loss = val_losses["total"]
@@ -272,7 +275,7 @@ class AgentGuardTrainer:
             print(f"Loaded best model from epoch {checkpoint['epoch']}")
 
         self.model.eval()
-        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "total": 0}
+        total_losses = {"recon": 0, "contrastive": 0, "temporal": 0, "cls": 0, "total": 0}
         num_batches = 0
         all_scores = []
         all_labels = []

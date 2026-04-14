@@ -149,21 +149,39 @@ class TemporalSmoothnessLoss(nn.Module):
 
 
 class HybridLoss(nn.Module):
-    """Combined three-part loss for AgentGuard training.
+    """Combined four-part loss for AgentGuard training.
 
-    L = λ1·L_recon + λ2·L_contrastive + λ3·L_temporal
+    L = λ_recon·L_recon + λ_contrastive·L_contrastive + λ_temporal·L_temporal
+        + λ_cls·L_cls
+
+    L_cls is a weighted binary cross-entropy on the anomaly_head output; it
+    anchors the head's polarity so sigmoid(head) actually represents an
+    anomaly probability instead of an arbitrary scalar shaped only by the
+    contrastive latent geometry.
     """
 
     def __init__(self, lambda_recon=1.0, lambda_contrastive=0.5, lambda_temporal=0.1,
-                 class_weight_ratio=1.0):
+                 lambda_cls=1.0, class_weight_ratio=1.0):
         super().__init__()
         self.lambda_recon = lambda_recon
         self.lambda_contrastive = lambda_contrastive
         self.lambda_temporal = lambda_temporal
+        self.lambda_cls = lambda_cls
+        self.class_weight_ratio = class_weight_ratio
 
         self.recon_loss = ReconstructionLoss()
         self.contrastive_loss = SupervisedContrastiveLoss(class_weight_ratio=class_weight_ratio)
         self.temporal_loss = TemporalSmoothnessLoss()
+
+    def _classification_loss(self, scores, labels):
+        scores = scores.squeeze(-1).clamp(1e-7, 1.0 - 1e-7)
+        labels = labels.float()
+        weights = torch.where(
+            labels > 0.5,
+            torch.tensor(self.class_weight_ratio, device=scores.device),
+            torch.tensor(1.0, device=scores.device),
+        )
+        return F.binary_cross_entropy(scores, labels, weight=weights)
 
     def forward(self, outputs, batch):
         """
@@ -192,13 +210,17 @@ class HybridLoss(nn.Module):
             outputs["latent"], batch["window_idx"], batch["agent_idx"],
         )
 
+        l_cls = self._classification_loss(outputs["anomaly_score"], batch["label"])
+
         total = (self.lambda_recon * l_recon
                  + self.lambda_contrastive * l_contrastive
-                 + self.lambda_temporal * l_temporal)
+                 + self.lambda_temporal * l_temporal
+                 + self.lambda_cls * l_cls)
 
         return total, {
             "recon": l_recon.item(),
             "contrastive": l_contrastive.item(),
             "temporal": l_temporal.item(),
+            "cls": l_cls.item(),
             "total": total.item(),
         }
