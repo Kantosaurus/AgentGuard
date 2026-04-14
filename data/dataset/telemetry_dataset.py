@@ -46,7 +46,7 @@ class AgentGuardDataset(Dataset):
         # Load all agent data and build index
         self.agent_data = []  # list of per-agent dicts
         self.samples = []     # list of (agent_idx, window_idx) tuples
-
+        self.agent_ids = agent_ids
         for agent_id in agent_ids:
             pt_path = self.data_dir / f"{agent_id}.pt"
             if not pt_path.exists():
@@ -132,4 +132,5 @@ class AgentGuardDataset(Dataset):
             "label": label,
             "window_idx": window_idx,
             "agent_idx": agent_idx,
+            "agent_id": self.agent_ids[agent_idx]
         }

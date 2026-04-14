@@ -1,5 +1,5 @@
 data:
-  raw_data_dir: "data/dataset/agentguard-all-batches(1)"
+  raw_data_dir: "data/dataset/agentguard-all-batches"
   processed_dir: "data/processed"
   date: "2026-03-15"
   window_size: 30
@@ -31,29 +31,35 @@ data:
     - agent-20
   augmentation: "none"
   augmentation_prob: 0.0
-  class_weight_ratio: 1.0
+  class_weight_ratio: 19.03
   k_folds: 5
   # Fixed split (used by train/eval modes as a single-run alternative to cv)
   train_agents:
     - agent-1
     - agent-2
     - agent-3
-    - agent-4
-    - agent-5
+    # - agent-4
+    # - agent-5
     - agent-6
     - agent-7
-    - agent-8
+    # - agent-8
     - agent-9
     - agent-10
+    - agent-11
+    - agent-12
     - agent-16
     - agent-17
     - agent-18
   val_agents:
-    - agent-11
-    - agent-12
+    # - agent-11
+    # - agent-12
+    # - agent-19
+    - agent-4
+    - agent-8
+    - agent-13
     - agent-19
   test_agents:
-    - agent-13
+    - agent-5
     - agent-14
     - agent-15
     - agent-20
@@ -62,29 +68,29 @@ model:
   d_model: 128
   stream1_input_dim: 32
   stream2_input_dim: 28
-  mamba_layers: 3
-  transformer_layers: 3
-  transformer_heads: 4
+  mamba_layers: 2
+  transformer_layers: 4
+  transformer_heads: 8
   transformer_ff_dim: 512
   latent_dim: 128
   dropout: 0.1
-  fusion_strategy: "cross_attention"
+  fusion_strategy: "gated"
   cls_head_layers: 2
-  cls_head_hidden_dim: 64
-  cls_head_activation: "relu"
-  decoder_activation: "relu"
+  cls_head_hidden_dim: 128
+  cls_head_activation: "silu"
+  decoder_activation: "silu"
 
 training:
   batch_size: 32
-  epochs: 100
-  lr: 0.001
+  epochs: 150
+  lr: 0.0003
   max_grad_norm: 1.0
   lambda_recon: 1.0
-  lambda_contrastive: 0.5
+  lambda_contrastive: 1.0
   lambda_temporal: 0.1
-  early_stopping_patience: 10
-  optimizer: "adam"
-  weight_decay: 0.0
+  early_stopping_patience: 20
+  optimizer: "adamw"
+  weight_decay: 0.0001
   scheduler: "cosine"
 
 logging:

@@ -16,6 +16,9 @@ def agentguard_collate(batch):
 
     Output: dict with same keys, values stacked into batch tensors.
     """
+
+    if len(batch) == 0:
+        return None
     return {
         "stream1": torch.stack([s["stream1"] for s in batch]),        # [B, seq_context, 32]
         "stream2_seq": torch.stack([s["stream2_seq"] for s in batch]), # [B, 64, 28]
@@ -23,6 +26,7 @@ def agentguard_collate(batch):
         "label": torch.stack([s["label"] for s in batch]),             # [B]
         "window_idx": torch.tensor([s["window_idx"] for s in batch], dtype=torch.long),  # [B]
         "agent_idx": torch.tensor([s["agent_idx"] for s in batch], dtype=torch.long),    # [B]
+        "agent_id": [s["agent_id"] for s in batch],
     }
 
 

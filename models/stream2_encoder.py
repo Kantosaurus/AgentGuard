@@ -64,7 +64,21 @@ class Stream2Encoder(nn.Module):
 
         # TransformerEncoder expects src_key_padding_mask where True = ignore
         padding_mask = (mask == 0)    # [B, T], True where padding
-        x = self.transformer(x, src_key_padding_mask=padding_mask)  # [B, T, d_model]
+
+        # if 0 in x.shape:
+        #     print(x.shape)
+        #     print(x)
+        #     # figure out batch size
+        #     batch_dim = 0 if self.transformer.batch_first else 1
+        #     batch_size = x.size(batch_dim)
+        #     x = torch.zeros(batch_size, self.d_model, device=x.device)
+        # else:
+        try:
+            x = self.transformer(x, src_key_padding_mask=padding_mask)  # [B, T, d_model]
+        except RuntimeError as e:
+            print("X Shape: ", x.shape)
+            print("Mask: ", mask)
+            print(x)
 
         # Masked mean pooling: average over real tokens only
         mask_expanded = mask.unsqueeze(-1)  # [B, T, 1]

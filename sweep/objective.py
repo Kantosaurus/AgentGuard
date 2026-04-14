@@ -80,7 +80,8 @@ def _run_single_fold(config, train_agents, val_agents, device, trial=None,
         logger=logger, epoch_csv=epoch_csv,
     )
     metrics = trainer.fit()
-    return metrics.get("auroc", 0.0)
+    # return metrics.get("auroc", 0.0)
+    return metrics.get("f1", 0.0)
 
 
 def create_objective(base_config, phase, best_params=None, n_folds=0):
@@ -142,15 +143,24 @@ def create_objective(base_config, phase, best_params=None, n_folds=0):
                         if j != fold_idx and j != (fold_idx + 1) % n_folds:
                             train_agents.extend(folds[j])
 
-                    auroc = _run_single_fold(
+                    f1 = _run_single_fold(
                         config, train_agents, val_agents, device,
                         trial=trial if fold_idx == 0 else None,
                         checkpoint_suffix=f"sweep_f{fold_idx}",
                         logger=trial_logger, epoch_csv=trial_csv,
                     )
-                    aurocs.append(auroc)
+                    aurocs.append(f1)
 
-                return float(np.mean(aurocs))
+                return float(np.mean(f1))
+                #     auroc = _run_single_fold(
+                #         config, train_agents, val_agents, device,
+                #         trial=trial if fold_idx == 0 else None,
+                #         checkpoint_suffix=f"sweep_f{fold_idx}",
+                #         logger=trial_logger, epoch_csv=trial_csv,
+                #     )
+                #     aurocs.append(auroc)
+
+                # return float(np.mean(aurocs))
             else:
                 # Single split
                 data_cfg = config["data"]
