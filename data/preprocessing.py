@@ -250,24 +250,100 @@ def encode_window_sequence(events, max_len=MAX_SEQ_LEN):
     return sequence, mask
 
 
+# ── Attack manifest loading ───────────────────────────────────────────────────
+
+def load_attack_manifests(batch_dir):
+    """Walk `batch_dir/*/attacks-*.jsonl` and return {attack_id: {"category", "prompt"}}.
+
+    Tolerant of malformed lines and missing files.
+    """
+    manifest = {}
+    batch_dir = Path(batch_dir)
+    if not batch_dir.exists():
+        return manifest
+
+    for manifest_path in batch_dir.glob("*/attacks-*.jsonl"):
+        try:
+            with open(manifest_path) as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    aid = entry.get("attack_id")
+                    if not aid:
+                        continue
+                    # First occurrence wins; all manifests observed carry the
+                    # same category for a given attack_id.
+                    if aid not in manifest:
+                        manifest[aid] = {
+                            "category": entry.get("category", "Unknown"),
+                            "prompt": entry.get("prompt", ""),
+                        }
+        except OSError:
+            continue
+
+    return manifest
+
+
 # ── Label determination ──────────────────────────────────────────────────────
 
-def window_has_attack(action_records):
-    """Return 1 if any record in the window has an attacker source, else 0."""
+def window_attack_metadata(action_records, manifest):
+    """Extract per-window attack metadata.
+
+    Scans `action_records` (chronological order from the raw JSONL) for sources
+    starting with ``attacker-`` and resolves each attack_id against ``manifest``.
+
+    Returns a dict:
+        label:           int, 1 if any attacker source is present else 0
+        attack_id:       str, primary attack_id (first occurrence) or ""
+        attack_category: str, category for primary attack_id; "Unknown" if
+                         id is not present in manifest; "" if no attack
+        all_ids:         list[str], distinct attack_ids seen in this window
+    """
+    primary_id = ""
+    all_ids = []
+    seen = set()
     for r in action_records:
         source = r.get("source", "")
-        if source.startswith("attacker-"):
-            return 1
-    return 0
+        if not source.startswith("attacker-"):
+            continue
+        aid = source[len("attacker-"):]
+        if not aid:
+            continue
+        if aid not in seen:
+            seen.add(aid)
+            all_ids.append(aid)
+        if not primary_id:
+            primary_id = aid
+
+    if not primary_id:
+        return {"label": 0, "attack_id": "", "attack_category": "", "all_ids": []}
+
+    category = manifest.get(primary_id, {}).get("category", "Unknown")
+    return {
+        "label": 1,
+        "attack_id": primary_id,
+        "attack_category": category,
+        "all_ids": all_ids,
+    }
 
 
 # ── Main preprocessing pipeline ─────────────────────────────────────────────
 
-def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_seq_len=MAX_SEQ_LEN):
+def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_seq_len=MAX_SEQ_LEN,
+                     manifest=None):
     """Process raw JSONL for one agent into aligned tensors.
 
-    Returns dict with keys: stream1, stream2_seq, stream2_mask, labels, window_starts
-    or None if no data found.
+    Returns dict with keys: stream1, stream2_seq, stream2_mask, labels,
+    window_starts, attack_ids, attack_categories, attack_id_sets — or None if
+    no data found.
+
+    ``manifest`` may be passed in (from ``load_attack_manifests``) to avoid
+    re-scanning the batch directory per agent. If not supplied, it is loaded
+    from ``Path(data_dir) / "batch"``.
     """
     agent_dir = Path(data_dir) / agent_id
     telemetry_file = agent_dir / "telemetry" / f"{date_str}.jsonl"
@@ -278,6 +354,9 @@ def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_
 
     if not telemetry_records and not action_records:
         return None
+
+    if manifest is None:
+        manifest = load_attack_manifests(Path(data_dir) / "batch")
 
     # Assign to windows
     telemetry_windows = assign_windows(telemetry_records, window_size)
@@ -293,6 +372,9 @@ def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_
     stream2_seq_list = []
     stream2_mask_list = []
     labels_list = []
+    attack_ids_list = []
+    attack_categories_list = []
+    attack_id_sets_list = []
 
     for ws in all_window_starts:
         tel_recs = telemetry_windows.get(ws, [])
@@ -312,13 +394,16 @@ def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_
             seq = [[0.0] * 28] * max_seq_len
             mask = [0] * max_seq_len
 
-        # Label from action records
-        label = window_has_attack(act_recs)
+        # Label + attack metadata from action records
+        meta = window_attack_metadata(act_recs, manifest)
 
         stream1_list.append(stream1_vec)
         stream2_seq_list.append(seq)
         stream2_mask_list.append(mask)
-        labels_list.append(label)
+        labels_list.append(meta["label"])
+        attack_ids_list.append(meta["attack_id"])
+        attack_categories_list.append(meta["attack_category"])
+        attack_id_sets_list.append(meta["all_ids"])
 
     return {
         "stream1": torch.tensor(stream1_list, dtype=torch.float32),        # [num_windows, 32]
@@ -326,6 +411,9 @@ def preprocess_agent(agent_id, data_dir, date_str, window_size=WINDOW_SIZE, max_
         "stream2_mask": torch.tensor(stream2_mask_list, dtype=torch.float32), # [num_windows, 64]
         "labels": torch.tensor(labels_list, dtype=torch.long),              # [num_windows]
         "window_starts": all_window_starts,
+        "attack_ids": attack_ids_list,                                      # list[str], len=num_windows
+        "attack_categories": attack_categories_list,                        # list[str], len=num_windows
+        "attack_id_sets": attack_id_sets_list,                              # list[list[str]], len=num_windows
     }
 
 
@@ -338,12 +426,18 @@ def run_preprocessing(raw_data_dir, processed_dir, date_str, agent_ids,
     processed_dir = Path(processed_dir)
     processed_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load attack manifest once for all agents.
+    manifest = load_attack_manifests(Path(raw_data_dir) / "batch")
+    print(f"[manifest] Loaded {len(manifest)} attack_id entries from "
+          f"{Path(raw_data_dir) / 'batch'}")
+
     total_windows = 0
     total_anomalous = 0
 
     for agent_id in agent_ids:
         result = preprocess_agent(agent_id, raw_data_dir, date_str,
-                                  window_size=window_size, max_seq_len=max_seq_len)
+                                  window_size=window_size, max_seq_len=max_seq_len,
+                                  manifest=manifest)
         if result is None:
             print(f"[{agent_id}] No data found, skipping")
             continue
