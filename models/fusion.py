@@ -72,6 +72,21 @@ class CrossAttentionFusion(nn.Module):
         denom = mask_f.sum(dim=1).clamp(min=1.0)           # [B, 1]
         return numer / denom
 
+    @staticmethod
+    def _safe_key_padding_mask(mask):
+        """Build a bool key_padding_mask (True=ignore) that never marks every
+        key as padded for any sample. If a row is all-padding, un-pad position 0
+        so softmax has at least one valid key and can't produce NaN.
+        """
+        if mask is None:
+            return None
+        kpm = (mask == 0)
+        all_padded = kpm.all(dim=1)
+        if all_padded.any():
+            kpm = kpm.clone()
+            kpm[all_padded, 0] = False
+        return kpm
+
     def forward(self, z1_seq, z2_seq, z1_mask=None, z2_mask=None, return_attention=False):
         """
         Args:
@@ -88,8 +103,10 @@ class CrossAttentionFusion(nn.Module):
         """
         # torch.MultiheadAttention key_padding_mask convention: True = ignore.
         # Our dataset mask convention: 1 = real, 0 = padding → invert.
-        kpm_z2 = (z2_mask == 0) if z2_mask is not None else None
-        kpm_z1 = (z1_mask == 0) if z1_mask is not None else None
+        # Force at least one real key per sample so softmax over all-masked rows
+        # never produces NaN (happens for benign windows with no action records).
+        kpm_z2 = self._safe_key_padding_mask(z2_mask)
+        kpm_z1 = self._safe_key_padding_mask(z1_mask)
 
         # --- z1 attends to z2 -----------------------------------------------------
         fused_1to2, attn_1to2 = self.cross_attn_1to2(

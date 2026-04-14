@@ -100,6 +100,9 @@ class AgentGuardTrainer:
 
             loss, loss_dict = self.criterion(outputs, batch)
 
+            if not torch.isfinite(loss):
+                continue
+
             self.optimizer.zero_grad()
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
@@ -148,6 +151,7 @@ class AgentGuardTrainer:
         # Compute metrics
         scores = torch.cat(all_scores)
         labels = torch.cat(all_labels)
+        scores = torch.nan_to_num(scores, nan=0.5, posinf=1.0, neginf=0.0)
         metrics = self._compute_metrics(scores, labels)
 
         return avg_losses, metrics
