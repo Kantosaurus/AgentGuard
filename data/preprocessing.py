@@ -262,7 +262,7 @@ def load_attack_manifests(batch_dir):
     if not batch_dir.exists():
         return manifest
 
-    for manifest_path in batch_dir.glob("*/attacks-*.jsonl"):
+    for manifest_path in sorted(batch_dir.glob("*/attacks-*.jsonl")):
         try:
             with open(manifest_path) as f:
                 for line in f:
