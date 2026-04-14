@@ -80,7 +80,7 @@ training:
   lambda_contrastive: 1.5033381567396014
   lambda_recon: 1.8400030626029629
   lambda_temporal: 0.012587202790672297
-  lr: 0.0025074805114836687
+  lr: 0.0003
   max_grad_norm: 1.0
   optimizer: "adam"
   scheduler: "onecycle"
