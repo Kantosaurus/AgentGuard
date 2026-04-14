@@ -50,7 +50,7 @@ def suggest_phase2_training(trial, best_arch):
     lr = trial.suggest_float("lr", 1e-4, 3e-3, log=True)
     optimizer = trial.suggest_categorical("optimizer", ["adam", "adamw"])
     scheduler = trial.suggest_categorical("scheduler", ["cosine", "plateau", "onecycle"])
-    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128])
+    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256, 512])
     grad_clip = trial.suggest_categorical("grad_clip", [0.5, 1.0, 2.0, 5.0])
 
     overrides.update({

@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +27,17 @@ from sweep.config_override import override_config
 
 RESULTS_DIR = Path("sweep/results")
 DB_PATH = RESULTS_DIR / "optuna.db"
+
+
+def _get_storage_url():
+    """Return Optuna storage URL. OPTUNA_STORAGE env var wins (e.g. Postgres);
+    otherwise use the local SQLite file. SQLite WAL mode is a separate
+    one-time setup via: sqlite3 sweep/results/optuna.db "PRAGMA journal_mode=WAL;"
+    """
+    env = os.environ.get("OPTUNA_STORAGE")
+    if env:
+        return env
+    return f"sqlite:///{DB_PATH}"
 
 PHASE_DEFAULTS = {
     1: {"n_trials": 100, "n_folds": 0, "study_name": "phase1_architecture"},
@@ -78,7 +90,7 @@ def run_phase(phase, base_config, n_trials=None, n_folds=None):
     study_name = defaults["study_name"]
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    storage = f"sqlite:///{DB_PATH}"
+    storage = _get_storage_url()
 
     # Load locked params from prior phases
     best_params = {}
@@ -133,7 +145,7 @@ def run_phase(phase, base_config, n_trials=None, n_folds=None):
 def run_phase4(base_config, n_folds=5, top_k=5):
     """Phase 4: Full CV on top-K configs from Phase 3."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    storage = f"sqlite:///{DB_PATH}"
+    storage = _get_storage_url()
 
     # Load Phase 3 study to get top-K trials
     study3 = optuna.load_study(
