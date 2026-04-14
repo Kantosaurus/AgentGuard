@@ -6,3 +6,5 @@ torch>=2.12.0
 pyyaml>=6.0.3
 optuna>=4.2.0
 scikit-learn>=1.6.0
+umap-learn>=0.5
+captum>=0.7
