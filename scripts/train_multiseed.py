@@ -226,10 +226,18 @@ def main():
                         help="Root directory for output artifacts (default: cwd).")
     parser.add_argument("--fast", action="store_true",
                         help="Smoke-test mode: override epochs to 5 and patience to 5.")
+    parser.add_argument("--epochs", type=int, default=None,
+                        help="Override config epochs (and early_stopping_patience = epochs).")
+    parser.add_argument("--folds", default=None,
+                        help="Comma-separated 1-indexed fold list (default: all folds).")
     args = parser.parse_args()
 
     seeds = parse_seeds(args.seeds)
     base_config = load_config(args.config)
+
+    if args.epochs is not None:
+        base_config["training"]["epochs"] = int(args.epochs)
+        base_config["training"]["early_stopping_patience"] = int(args.epochs)
 
     data_cfg = base_config["data"]
     attacked = data_cfg["attacked_agents"]
@@ -241,11 +249,16 @@ def main():
     for i, fold in enumerate(folds):
         print(f"  fold {i + 1}: {fold}")
 
+    if args.folds is not None:
+        fold_indices = [int(x) - 1 for x in args.folds.split(",")]
+    else:
+        fold_indices = list(range(k))
+
     # grid[seed][fold_idx] -> auroc
     grid = {seed: [float("nan")] * k for seed in seeds}
 
     for seed in seeds:
-        for fold_idx in range(k):
+        for fold_idx in fold_indices:
             auroc = run_one(
                 base_config=base_config,
                 seed=seed,
