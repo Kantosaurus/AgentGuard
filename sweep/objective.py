@@ -5,6 +5,7 @@ Creates objective functions for each phase of hyperparameter search.
 Supports single-split and k-fold cross-validation evaluation.
 """
 
+import os
 import random
 from pathlib import Path
 
@@ -62,13 +63,16 @@ def _run_single_fold(config, train_agents, val_agents, device, trial=None,
     else:
         collate_fn = agentguard_collate
 
+    loader_kwargs = dict(
+        num_workers=4, pin_memory=True, persistent_workers=True,
+    )
     train_loader = DataLoader(
         train_ds, batch_size=training_cfg["batch_size"],
-        shuffle=True, collate_fn=collate_fn,
+        shuffle=True, collate_fn=collate_fn, **loader_kwargs,
     )
     val_loader = DataLoader(
         val_ds, batch_size=training_cfg["batch_size"],
-        shuffle=False, collate_fn=agentguard_collate,
+        shuffle=False, collate_fn=agentguard_collate, **loader_kwargs,
     )
 
     model = build_model(config)
@@ -146,7 +150,7 @@ def create_objective(base_config, phase, best_params=None, n_folds=0):
                     f1 = _run_single_fold(
                         config, train_agents, val_agents, device,
                         trial=trial if fold_idx == 0 else None,
-                        checkpoint_suffix=f"sweep_f{fold_idx}",
+                        checkpoint_suffix=f"sweep_pid{os.getpid()}_f{fold_idx}",
                         logger=trial_logger, epoch_csv=trial_csv,
                     )
                     aurocs.append(f1)
@@ -167,6 +171,7 @@ def create_objective(base_config, phase, best_params=None, n_folds=0):
                 return _run_single_fold(
                     config, data_cfg["train_agents"], data_cfg["val_agents"],
                     device, trial=trial,
+                    checkpoint_suffix=f"sweep_pid{os.getpid()}",
                     logger=trial_logger, epoch_csv=trial_csv,
                 )
 
