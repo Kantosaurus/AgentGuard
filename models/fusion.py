@@ -124,9 +124,12 @@ class CrossAttentionFusion(nn.Module):
         )  # fused_2to1: [B, T2, d_model]; attn_2to1: [B, heads, T2, T1]
         z2_out = self.norm2(z2_seq + fused_2to1)  # [B, T2, d_model]
 
-        # --- Masked mean-pool each fused sequence over time ------------------------
-        z1_pooled = self._masked_mean(z1_out, z1_mask)  # [B, d_model]
-        z2_pooled = self._masked_mean(z2_out, z2_mask)  # [B, d_model]
+        # --- Pool each fused sequence ---------------------------------------------
+        # Match the pre-retrofit pooled representations: Stream 1 used the last
+        # timestep, Stream 2 used masked mean over real positions. Preserving this
+        # keeps the reconstruction targets (last-window features) learnable.
+        z1_pooled = z1_out[:, -1, :]                     # [B, d_model]
+        z2_pooled = self._masked_mean(z2_out, z2_mask)   # [B, d_model]
 
         # --- Concat + MLP ---------------------------------------------------------
         combined = torch.cat([z1_pooled, z2_pooled], dim=-1)  # [B, 2*d_model]
