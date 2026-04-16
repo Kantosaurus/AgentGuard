@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DATA_DIR = Path(os.environ.get("AGENTGUARD_DATA_DIR", "/var/log/agentguard"))
-OPENCLAW_STATE_DIR = Path(os.environ.get("OPENCLAW_STATE_DIR", "/root/.openclaw/state"))
+OPENCLAW_STATE_DIR = Path(os.environ.get("OPENCLAW_STATE_DIR", "/root/.openclaw"))
 INTERVAL = int(os.environ.get("AGENTGUARD_ACTION_INTERVAL", "10"))  # seconds
 
 # Track what we've already processed
@@ -25,13 +25,14 @@ _processed_offsets = {}
 def find_transcript_files():
     """Find OpenClaw session transcript files."""
     patterns = [
-        str(OPENCLAW_STATE_DIR / "sessions" / "*" / "transcript.jsonl"),
-        str(OPENCLAW_STATE_DIR / "transcripts" / "*.jsonl"),
+        str(OPENCLAW_STATE_DIR / "agents" / "main" / "sessions" / "*.jsonl"),
+        str(OPENCLAW_STATE_DIR / "cron" / "runs" / "*.jsonl"),
     ]
     files = []
     for pattern in patterns:
         files.extend(glob.glob(pattern))
     return files
+
 
 
 def hash_args(args):
@@ -187,6 +188,9 @@ def main():
     while True:
         try:
             all_actions = []
+            files = find_transcript_files()
+            print(f"[AgentGuard] Found {len(files)} transcript files")
+            print(files[:3])
             for tf in find_transcript_files():
                 actions = extract_actions_from_transcript(tf)
                 all_actions.extend(actions)
