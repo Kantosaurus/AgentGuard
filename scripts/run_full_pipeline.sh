@@ -101,14 +101,26 @@ if [[ "$SKIP_DEPS" -eq 0 ]]; then
     # can pull in distutils-installed transitive deps (e.g. blinker) that
     # pip cannot upgrade cleanly on some Ubuntu base images.
     if [[ -f requirements.txt ]]; then
+        # Filter packages that either conflict with container-provided
+        # CUDA builds (torch) or are dashboard/SSH-live-mode only and
+        # pull in distutils-installed transitive deps we can't manage
+        # (streamlit -> blinker, etc.).
         grep -v -E '^\s*(torch|streamlit|plotly|paramiko)(\s|>|<|=|~|$)' requirements.txt \
             > /tmp/requirements_pipeline.txt || true
         echo "  installing (this can take 5-15 minutes on a fresh container):"
-        cat /tmp/requirements_pipeline.txt | sed 's/^/    /'
-        # --ignore-installed skips pip's uninstall-then-reinstall dance for
-        # any package already present, sidestepping the distutils-uninstall
-        # error class entirely. Dropped -q so progress is visible.
-        pip install --no-cache-dir --progress-bar on --ignore-installed \
+        sed 's/^/    /' /tmp/requirements_pipeline.txt
+        # Pin installed torch version so pip won't reinstall it as a transitive
+        # dep of something like captum — captum's requirement is just "torch",
+        # and pip would happily pull the latest CPU wheel from PyPI, clobbering
+        # the CUDA build the container provided.
+        INSTALLED_TORCH_VER="$(python -c 'import torch; print(torch.__version__)')"
+        echo "torch==${INSTALLED_TORCH_VER}" > /tmp/pipeline_constraints.txt
+        # No --ignore-installed: we want pip to respect the existing torch
+        # install. upgrade-strategy=only-if-needed is pip's default but made
+        # explicit here to document intent.
+        pip install --no-cache-dir --progress-bar on \
+            --upgrade-strategy only-if-needed \
+            -c /tmp/pipeline_constraints.txt \
             -r /tmp/requirements_pipeline.txt \
             || note "requirements.txt install had errors; verifying imports next"
     fi
