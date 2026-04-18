@@ -81,10 +81,26 @@ if [[ "$SKIP_DEPS" -eq 0 ]]; then
         note "apt-get not present; skipping system package install"
     fi
 
-    # Python deps. Don't fail the whole script if a single pin is awkward —
-    # we'll re-verify key imports right after.
+    # Install torch FIRST from the CUDA index. PyPI's default torch wheels are
+    # CPU-only, which would make torch.cuda.is_available() return False on
+    # H200. We only install it if it's missing or is a CPU build.
+    TORCH_CUDA_OK="$(python -c 'import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)' 2>/dev/null && echo 1 || echo 0)"
+    if [[ "$TORCH_CUDA_OK" != "1" ]]; then
+        note "torch with CUDA not importable — installing from pytorch CUDA 12.4 index"
+        pip install --no-cache-dir \
+            --index-url https://download.pytorch.org/whl/cu124 \
+            torch \
+            || note "CUDA torch install failed; falling back to default index"
+    else
+        note "torch with CUDA already present; skipping torch reinstall"
+    fi
+
+    # Python deps (non-torch). Don't fail the whole script if a single pin is
+    # awkward — we'll re-verify key imports right after.
     if [[ -f requirements.txt ]]; then
-        pip install --no-cache-dir -q -r requirements.txt \
+        # Skip the torch line so we don't clobber the CUDA build we just installed.
+        grep -v -E '^\s*torch(\s|>|<|=|~|$)' requirements.txt > /tmp/requirements_notorch.txt || true
+        pip install --no-cache-dir -q -r /tmp/requirements_notorch.txt \
             || note "requirements.txt install had errors; verifying imports next"
     fi
     # Belt-and-braces: umap-learn is often missing in minimal images.
