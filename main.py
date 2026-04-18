@@ -520,6 +520,17 @@ def set_global_seed(seed: int = 42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+    # On Hopper (H100/H200) and Ada, torch's default matmul precision is "high"
+    # which uses TF32. TF32's reduced mantissa can drift far enough during the
+    # SSM prefix-scan to produce NaN in anomaly_score. Force fp32 matmul.
+    if torch.cuda.is_available():
+        try:
+            torch.set_float32_matmul_precision("highest")
+        except Exception:
+            pass
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+
     print(f"Global seed set to {seed}")
 
 # ── CLI ──────────────────────────────────────────────────────────────────────

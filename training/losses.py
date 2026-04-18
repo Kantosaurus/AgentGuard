@@ -173,8 +173,26 @@ class HybridLoss(nn.Module):
         self.contrastive_loss = SupervisedContrastiveLoss(class_weight_ratio=class_weight_ratio)
         self.temporal_loss = TemporalSmoothnessLoss()
 
+    _warned_nan_scores = False
+
     def _classification_loss(self, scores, labels):
-        scores = scores.squeeze(-1).clamp(1e-7, 1.0 - 1e-7)
+        scores = scores.squeeze(-1)
+        # Guard against NaN/Inf from the anomaly head. These can appear on
+        # Hopper (H100/H200) when the SSM prefix-scan overflows before
+        # reaching sigmoid; unprotected, BCELoss fires a device-side
+        # assertion and kills the whole process.
+        bad = ~torch.isfinite(scores)
+        if bad.any():
+            if not HybridLoss._warned_nan_scores:
+                print(
+                    f"[losses] warning: non-finite anomaly_score "
+                    f"({bad.sum().item()}/{bad.numel()} elems); "
+                    f"replacing with 0.5 so BCE can proceed",
+                    flush=True,
+                )
+                HybridLoss._warned_nan_scores = True
+            scores = torch.where(bad, torch.full_like(scores, 0.5), scores)
+        scores = scores.clamp(1e-7, 1.0 - 1e-7)
         labels = labels.float()
         weights = torch.where(
             labels > 0.5,
