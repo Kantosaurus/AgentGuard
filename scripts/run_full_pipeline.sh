@@ -103,15 +103,17 @@ if [[ "$SKIP_DEPS" -eq 0 ]]; then
     if [[ -f requirements.txt ]]; then
         grep -v -E '^\s*(torch|streamlit|plotly|paramiko)(\s|>|<|=|~|$)' requirements.txt \
             > /tmp/requirements_pipeline.txt || true
+        echo "  installing (this can take 5-15 minutes on a fresh container):"
+        cat /tmp/requirements_pipeline.txt | sed 's/^/    /'
         # --ignore-installed skips pip's uninstall-then-reinstall dance for
         # any package already present, sidestepping the distutils-uninstall
-        # error class entirely.
-        pip install --no-cache-dir -q --ignore-installed \
+        # error class entirely. Dropped -q so progress is visible.
+        pip install --no-cache-dir --progress-bar on --ignore-installed \
             -r /tmp/requirements_pipeline.txt \
             || note "requirements.txt install had errors; verifying imports next"
     fi
     # Belt-and-braces: umap-learn is often missing in minimal images.
-    python -c "import umap" 2>/dev/null || pip install --no-cache-dir -q umap-learn
+    python -c "import umap" 2>/dev/null || pip install --no-cache-dir umap-learn
 else
     note "--skip-deps: assuming system + python packages already installed"
 fi
