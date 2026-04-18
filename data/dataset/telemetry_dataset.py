@@ -52,10 +52,19 @@ class AgentGuardDataset(Dataset):
             if not pt_path.exists():
                 continue
             data = torch.load(pt_path, weights_only=True)
+            num_windows = data["stream1"].shape[0]
+
+            # Backfill attack metadata for older .pt files that predate Phase A.
+            if "attack_ids" not in data:
+                data["attack_ids"] = [""] * num_windows
+            if "attack_categories" not in data:
+                data["attack_categories"] = [""] * num_windows
+            if "attack_id_sets" not in data:
+                data["attack_id_sets"] = [[] for _ in range(num_windows)]
+
             agent_idx = len(self.agent_data)
             self.agent_data.append(data)
 
-            num_windows = data["stream1"].shape[0]
             # Need at least seq_context windows to form one sample
             for w in range(seq_context - 1, num_windows):
                 self.samples.append((agent_idx, w))
@@ -125,6 +134,10 @@ class AgentGuardDataset(Dataset):
         # Label for the last window
         label = data["labels"][effective_window]
 
+        # Primary attack metadata for the effective window (aligned with label)
+        attack_id = data["attack_ids"][effective_window]
+        attack_category = data["attack_categories"][effective_window]
+
         return {
             "stream1": stream1,
             "stream2_seq": stream2_seq,
@@ -132,5 +145,7 @@ class AgentGuardDataset(Dataset):
             "label": label,
             "window_idx": window_idx,
             "agent_idx": agent_idx,
-            "agent_id": self.agent_ids[agent_idx]
+            "agent_id": self.agent_ids[agent_idx],
+            "attack_id": attack_id,
+            "attack_category": attack_category,
         }

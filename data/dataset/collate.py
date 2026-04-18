@@ -12,7 +12,8 @@ def agentguard_collate(batch):
     """Collate a list of sample dicts into a batched dict of tensors.
 
     Input: list of dicts, each with keys:
-        stream1, stream2_seq, stream2_mask, label, window_idx, agent_idx
+        stream1, stream2_seq, stream2_mask, label, window_idx, agent_idx,
+        agent_id, attack_id, attack_category
 
     Output: dict with same keys, values stacked into batch tensors.
     """
@@ -27,6 +28,8 @@ def agentguard_collate(batch):
         "window_idx": torch.tensor([s["window_idx"] for s in batch], dtype=torch.long),  # [B]
         "agent_idx": torch.tensor([s["agent_idx"] for s in batch], dtype=torch.long),    # [B]
         "agent_id": [s["agent_id"] for s in batch],
+        "attack_id": [s["attack_id"] for s in batch],
+        "attack_category": [s["attack_category"] for s in batch],
     }
 
 

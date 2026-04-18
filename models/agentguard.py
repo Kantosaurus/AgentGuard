@@ -37,6 +37,10 @@ class AgentGuardModel(nn.Module):
 
         self.max_seq_len = max_seq_len
         self.stream2_input_dim = stream2_input_dim
+        # Cross-attention fusion consumes full encoder sequences;
+        # all other strategies consume pooled [B, d_model] vectors.
+        self.fusion_strategy = fusion_strategy
+        self.use_sequence_fusion = (fusion_strategy == "cross_attention")
 
         act_fn = self._get_activation(decoder_activation)
         cls_act_fn = self._get_activation(cls_head_activation)
@@ -103,21 +107,41 @@ class AgentGuardModel(nn.Module):
         else:
             raise ValueError(f"cls_head_layers must be 1, 2, or 3, got {n_layers}")
 
-    def forward(self, stream1, stream2_seq, stream2_mask):
+    def forward(self, stream1, stream2_seq, stream2_mask, return_attention=False):
         """
         Args:
             stream1:      [B, seq_context, stream1_input_dim]
             stream2_seq:  [B, max_seq_len, stream2_input_dim]
             stream2_mask: [B, max_seq_len]
+            return_attention: if True AND using cross-attention fusion, the
+                returned dict additionally contains an "attention_weights" entry
+                with per-head weights {"1to2": [B, H, T1, T2], "2to1": [B, H, T2, T1]}.
         Returns:
             dict with keys: latent, stream1_recon, stream2_recon, anomaly_score
+            (plus optionally attention_weights, see above).
         """
-        # Encode both streams
-        z1 = self.stream1_encoder(stream1)       # [B, d_model]
-        z2 = self.stream2_encoder(stream2_seq, stream2_mask)  # [B, d_model]
+        attn_dict = None
 
-        # Fuse
-        latent = self.fusion(z1, z2)  # [B, latent_dim]
+        if self.use_sequence_fusion:
+            # Encode both streams as full sequences for cross-attention over time
+            z1_seq = self.stream1_encoder(stream1, return_sequence=True)   # [B, T1, d_model]
+            z2_seq = self.stream2_encoder(stream2_seq, stream2_mask, return_sequence=True)  # [B, T2, d_model]
+
+            # Stream 1 has no padding; Stream 2 uses stream2_mask.
+            fusion_out = self.fusion(
+                z1_seq, z2_seq,
+                z1_mask=None, z2_mask=stream2_mask,
+                return_attention=return_attention,
+            )
+            if return_attention:
+                latent, attn_dict = fusion_out
+            else:
+                latent = fusion_out
+        else:
+            # Pooled-vector fusion path (concat_mlp, gated, attention_pool).
+            z1 = self.stream1_encoder(stream1)                             # [B, d_model]
+            z2 = self.stream2_encoder(stream2_seq, stream2_mask)           # [B, d_model]
+            latent = self.fusion(z1, z2)                                   # [B, latent_dim]
 
         # Decode for reconstruction
         stream1_recon = self.stream1_decoder(latent)  # [B, stream1_input_dim]
@@ -127,9 +151,14 @@ class AgentGuardModel(nn.Module):
         # Anomaly score
         anomaly_score = self.anomaly_head(latent)  # [B, 1]
 
-        return {
+        outputs = {
             "latent": latent,
             "stream1_recon": stream1_recon,
             "stream2_recon": stream2_recon,
             "anomaly_score": anomaly_score,
         }
+        # Only include attention_weights when it's genuinely available:
+        # cross-attention fusion AND caller requested it.
+        if return_attention and attn_dict is not None:
+            outputs["attention_weights"] = attn_dict
+        return outputs

@@ -67,13 +67,16 @@ def build_loaders_from_splits(config, train_agents, val_agents, test_agents=None
     )
     val_ds.set_normalization_stats(train_mean, train_std)
 
+    loader_kwargs = dict(
+        num_workers=4, pin_memory=True, persistent_workers=True,
+    )
     train_loader = DataLoader(
         train_ds, batch_size=training_cfg["batch_size"],
-        shuffle=True, collate_fn=agentguard_collate,
+        shuffle=True, collate_fn=agentguard_collate, **loader_kwargs,
     )
     val_loader = DataLoader(
         val_ds, batch_size=training_cfg["batch_size"],
-        shuffle=False, collate_fn=agentguard_collate,
+        shuffle=False, collate_fn=agentguard_collate, **loader_kwargs,
     )
 
     test_loader = None
@@ -85,7 +88,7 @@ def build_loaders_from_splits(config, train_agents, val_agents, test_agents=None
         test_ds.set_normalization_stats(train_mean, train_std)
         test_loader = DataLoader(
             test_ds, batch_size=training_cfg["batch_size"],
-            shuffle=False, collate_fn=agentguard_collate,
+            shuffle=False, collate_fn=agentguard_collate, **loader_kwargs,
         )
         print(f"Dataset sizes: train={len(train_ds)}, val={len(val_ds)}, test={len(test_ds)}")
     else:

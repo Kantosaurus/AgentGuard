@@ -51,13 +51,16 @@ class Stream2Encoder(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
-    def forward(self, x, mask):
+    def forward(self, x, mask, return_sequence=False):
         """
         Args:
             x:    [B, max_len, input_dim] action sequence
             mask: [B, max_len] attention mask (1 = real, 0 = padding)
+            return_sequence: if True, return post-transformer sequence
+                [B, max_len, d_model] instead of masked-mean-pooled [B, d_model].
         Returns:
-            [B, d_model] pooled encoding
+            [B, d_model] pooled encoding (default), or
+            [B, max_len, d_model] full sequence when return_sequence=True.
         """
         x = self.input_proj(x)       # [B, T, d_model]
         x = self.pos_enc(x)
@@ -79,6 +82,9 @@ class Stream2Encoder(nn.Module):
             print("X Shape: ", x.shape)
             print("Mask: ", mask)
             print(x)
+
+        if return_sequence:
+            return x  # [B, max_len, d_model]
 
         # Masked mean pooling: average over real tokens only
         mask_expanded = mask.unsqueeze(-1)  # [B, T, 1]
