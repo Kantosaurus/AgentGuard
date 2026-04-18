@@ -193,7 +193,7 @@ step "5/7  STAGE 1 — multiseed training (15 jobs on $N_GPUS GPUs)"
 # --line-buffer keeps per-job output un-interleaved.
 parallel -j "$N_GPUS" --colsep ' ' --line-buffer \
     --joblog logs/stage1_joblog.tsv \
-    'CUDA_VISIBLE_DEVICES=$(({%}-1)) python scripts/train_multiseed.py \
+    'CUDA_VISIBLE_DEVICES=$(({%}-1)) PYTHONUNBUFFERED=1 python scripts/train_multiseed.py \
         --config config_best.yml --seeds {1} --folds {2} --out_dir . \
         > logs/stage1_s{1}_f{2}.log 2>&1 && echo "  [done] seed={1} fold={2} on gpu=$(({%}-1))"' \
     ::: 42 1337 2024 ::: 1 2 3 4 5
@@ -222,7 +222,7 @@ N_BASELINE_GPUS=3
 
 parallel -j "$N_BASELINE_GPUS" --colsep ' ' --line-buffer \
     --joblog logs/stage2_joblog.tsv \
-    'CUDA_VISIBLE_DEVICES=$(({%}-1)) python baselines/run_baselines.py \
+    'CUDA_VISIBLE_DEVICES=$(({%}-1)) PYTHONUNBUFFERED=1 python baselines/run_baselines.py \
         --config config_best.yml --seeds {1} \
         > logs/stage2_s{1}.log 2>&1 && echo "  [done] baselines seed={1} on gpu=$(({%}-1))"' \
     ::: 42 1337 2024
