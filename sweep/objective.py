@@ -28,6 +28,15 @@ def _set_seed(seed=42):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+        # Disable TF32 on Hopper/Ada — TF32's reduced mantissa can push the
+        # Mamba SSM prefix-scan into NaN territory, triggering a device-side
+        # BCELoss assertion. Keeps behaviour consistent with main.set_global_seed.
+        try:
+            torch.set_float32_matmul_precision("highest")
+        except Exception:
+            pass
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
 
 
 def _run_single_fold(config, train_agents, val_agents, device, trial=None,
