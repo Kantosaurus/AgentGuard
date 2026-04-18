@@ -95,12 +95,19 @@ if [[ "$SKIP_DEPS" -eq 0 ]]; then
         note "torch with CUDA already present; skipping torch reinstall"
     fi
 
-    # Python deps (non-torch). Don't fail the whole script if a single pin is
-    # awkward — we'll re-verify key imports right after.
+    # Python deps needed by the pipeline (training, baselines, plots,
+    # interpretability). Deliberately skip torch (already handled), and skip
+    # streamlit/plotly/paramiko which are dashboard/SSH-live-mode only and
+    # can pull in distutils-installed transitive deps (e.g. blinker) that
+    # pip cannot upgrade cleanly on some Ubuntu base images.
     if [[ -f requirements.txt ]]; then
-        # Skip the torch line so we don't clobber the CUDA build we just installed.
-        grep -v -E '^\s*torch(\s|>|<|=|~|$)' requirements.txt > /tmp/requirements_notorch.txt || true
-        pip install --no-cache-dir -q -r /tmp/requirements_notorch.txt \
+        grep -v -E '^\s*(torch|streamlit|plotly|paramiko)(\s|>|<|=|~|$)' requirements.txt \
+            > /tmp/requirements_pipeline.txt || true
+        # --ignore-installed skips pip's uninstall-then-reinstall dance for
+        # any package already present, sidestepping the distutils-uninstall
+        # error class entirely.
+        pip install --no-cache-dir -q --ignore-installed \
+            -r /tmp/requirements_pipeline.txt \
             || note "requirements.txt install had errors; verifying imports next"
     fi
     # Belt-and-braces: umap-learn is often missing in minimal images.
