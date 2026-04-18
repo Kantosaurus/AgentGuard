@@ -23,6 +23,10 @@ class TransformerAE(nn.Module):
     ):
         super().__init__()
         self.in_proj = nn.Linear(input_dim, d_model)
+        # Normalize projected inputs before self-attention. Without this, raw
+        # telemetry features of varied scale can push Q·K^T large enough to
+        # saturate softmax and produce NaN during inference.
+        self.in_norm = nn.LayerNorm(d_model)
         enc_layer = nn.TransformerEncoderLayer(
             d_model=d_model, nhead=n_heads, dim_feedforward=dim_feedforward,
             dropout=dropout, batch_first=True,
@@ -37,6 +41,7 @@ class TransformerAE(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         z = self.in_proj(x)
+        z = self.in_norm(z)
         z = self.encoder(z)
         z = self.decoder(z)
         return self.out_proj(z)

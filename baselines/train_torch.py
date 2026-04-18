@@ -69,7 +69,13 @@ def train_ae(
 
 @torch.no_grad()
 def score_ae(model: nn.Module, loader: DataLoader, device: str) -> Tuple[np.ndarray, np.ndarray]:
-    """Return per-sample reconstruction MSE and ground-truth labels as numpy arrays."""
+    """Return per-sample reconstruction MSE and ground-truth labels as numpy arrays.
+
+    Non-finite scores (NaN/Inf) are replaced with 10x the largest finite
+    score so the offending samples rank as the most anomalous — this keeps
+    sklearn's roc_auc_score happy when a model occasionally blows up on an
+    out-of-distribution input rather than aborting the whole baseline run.
+    """
     model.to(device).eval()
     scores, labels = [], []
     for x, y in loader:
@@ -79,7 +85,10 @@ def score_ae(model: nn.Module, loader: DataLoader, device: str) -> Tuple[np.ndar
         err = ((recon - x) ** 2).reshape(x.shape[0], -1).mean(dim=1)
         scores.append(err.cpu())
         labels.append(y.cpu())
-    return (
-        torch.cat(scores).numpy().astype(np.float32),
-        torch.cat(labels).numpy().astype(np.int64),
-    )
+    s = torch.cat(scores).numpy().astype(np.float32)
+    y = torch.cat(labels).numpy().astype(np.int64)
+    if not np.all(np.isfinite(s)):
+        finite = s[np.isfinite(s)]
+        replacement = float(finite.max()) * 10.0 if finite.size else 1.0
+        s = np.nan_to_num(s, nan=replacement, posinf=replacement, neginf=0.0)
+    return s, y

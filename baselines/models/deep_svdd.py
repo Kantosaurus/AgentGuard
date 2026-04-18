@@ -119,7 +119,12 @@ def score_deep_svdd(
         err = ((z - c) ** 2).sum(dim=1)
         scores.append(err.cpu())
         labels.append(y.cpu())
-    return (
-        torch.cat(scores).numpy().astype(np.float32),
-        torch.cat(labels).numpy().astype(np.int64),
-    )
+    s = torch.cat(scores).numpy().astype(np.float32)
+    y = torch.cat(labels).numpy().astype(np.int64)
+    # Same NaN-safe treatment as score_ae — replace non-finite with a large
+    # finite value so sklearn's ROC/PR helpers never see NaN.
+    if not np.all(np.isfinite(s)):
+        finite = s[np.isfinite(s)]
+        replacement = float(finite.max()) * 10.0 if finite.size else 1.0
+        s = np.nan_to_num(s, nan=replacement, posinf=replacement, neginf=0.0)
+    return s, y
