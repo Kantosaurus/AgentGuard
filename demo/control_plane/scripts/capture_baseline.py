@@ -123,9 +123,11 @@ def main() -> int:
         assert arr.shape == (8, 32), arr.shape
 
         OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Write to a .tmp then rename so a crashed run can never leave a
-        # partially-written file on disk (matches demo/.gitignore's tmp rule).
-        tmp = OUT_PATH.with_suffix(".npy.tmp")
+        # Write to a sibling .tmp then rename, so a crashed run never leaves a
+        # partially-written file on disk. numpy.save appends ".npy" unless the
+        # path already ends in ".npy", so we give it a full ".npy" path that
+        # encodes "tmp" in the stem instead.
+        tmp = OUT_PATH.with_name(OUT_PATH.stem + ".tmp.npy")
         np.save(tmp, arr)
         tmp.replace(OUT_PATH)
         print(f"[capture_baseline] wrote {OUT_PATH} shape={arr.shape}")

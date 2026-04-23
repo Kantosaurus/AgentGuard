@@ -17,7 +17,7 @@ services:
     ports: ["8000:8000"]
     volumes:
       - //var/run/docker.sock:/var/run/docker.sock
-      - ./shared:/app/shared:ro
+      - ./shared:/app/shared
     environment:
       AGENTGUARD_THRESHOLD: "${AGENTGUARD_THRESHOLD:-0.5}"
       AGENTGUARD_WORKER_IMAGE: agentguard-agent-worker:latest
