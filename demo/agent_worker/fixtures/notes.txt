@@ -1,0 +1,10 @@
+Q2 planning notes
+-----------------
+- Finalize demo storyline (benign + attack prompts)
+- Wire control-plane to agent worker over docker-compose
+- Record screen capture of 8 canned prompts
+
+Action items:
+1. Confirm Stream-2 schema matches data/preprocessing.encode_event
+2. Sanity-check attacker-receiver exfil logging
+3. Prepare slides for Friday review
