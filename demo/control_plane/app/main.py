@@ -101,6 +101,9 @@ async def health() -> dict:
         "ok": True,
         "run_manager_ready": _rm is not None,
         "run_manager_error": _rm_error,
+        "threshold": _cfg.threshold,
+        "tick_sec": _cfg.tick_sec,
+        "run_timeout_sec": _cfg.run_timeout_sec,
     }
 
 

@@ -3,6 +3,25 @@ import type { DemoEvent } from "./types";
 export const API =
   process.env.NEXT_PUBLIC_CONTROL_PLANE ?? "http://localhost:8000";
 
+export type HealthInfo = {
+  ok: boolean;
+  run_manager_ready: boolean;
+  run_manager_error: string | null;
+  threshold?: number;
+  tick_sec?: number;
+  run_timeout_sec?: number;
+};
+
+export async function getHealth(): Promise<HealthInfo | null> {
+  try {
+    const r = await fetch(`${API}/health`, { cache: "no-store" });
+    if (!r.ok) return null;
+    return (await r.json()) as HealthInfo;
+  } catch {
+    return null;
+  }
+}
+
 export async function postRun(prompt: string): Promise<{ run_id: string }> {
   const r = await fetch(`${API}/run`, {
     method: "POST",
