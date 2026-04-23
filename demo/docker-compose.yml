@@ -6,7 +6,7 @@ services:
       args:
         NEXT_PUBLIC_CONTROL_PLANE: http://localhost:8000
     image: agentguard-frontend:latest
-    ports: ["3000:3000"]
+    ports: ["3001:3000"]
     depends_on: [control-plane]
 
   control-plane:
@@ -19,7 +19,7 @@ services:
       - //var/run/docker.sock:/var/run/docker.sock
       - ./shared:/app/shared
     environment:
-      AGENTGUARD_THRESHOLD: "${AGENTGUARD_THRESHOLD:-0.5}"
+      AGENTGUARD_THRESHOLD: "${AGENTGUARD_THRESHOLD:-0.45}"
       AGENTGUARD_WORKER_IMAGE: agentguard-agent-worker:latest
       AGENTGUARD_NETWORK: agentguard-demo-net
       AGENTGUARD_TELEMETRY: http://telemetry-collector:8100

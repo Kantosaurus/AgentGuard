@@ -117,21 +117,38 @@ class RunManager:
     # ----------------------------------------------------------------- internal
 
     async def _fire_worker(self, run: Run, prompt: str) -> None:
-        """Fire-and-forget POST to the worker's /execute endpoint."""
-        url = f"http://agent-worker-{run.run_id}:{self.cfg.worker_port}/execute"
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as c:
-                await c.post(
-                    url, json={"run_id": run.run_id, "prompt": prompt}
+        """Wait for the worker's uvicorn to bind, then POST /execute.
+
+        The worker is spawned via docker SDK but uvicorn needs a second or two
+        before it accepts connections. Poll /health up to ~10 s before firing.
+        """
+        base = f"http://agent-worker-{run.run_id}:{self.cfg.worker_port}"
+        async with httpx.AsyncClient(timeout=2.0) as c:
+            for attempt in range(30):  # ~15 s max
+                try:
+                    r = await c.get(f"{base}/health")
+                    if r.status_code == 200:
+                        break
+                except Exception:  # noqa: BLE001
+                    pass
+                await asyncio.sleep(0.5)
+            else:
+                log.warning(
+                    "worker %s never became healthy; firing anyway", run.run_id
                 )
-        except Exception as e:  # noqa: BLE001
-            # The worker may not be reachable (unit tests, missing image).
-            # Keep the tick loop alive regardless.
-            log.warning("could not POST to %s: %s", url, e)
-            await self.bc.publish(
-                run.run_id,
-                {"type": "log", "line": f"control-plane: worker POST failed: {e}"},
-            )
+
+            try:
+                await c.post(
+                    f"{base}/execute",
+                    json={"run_id": run.run_id, "prompt": prompt},
+                    timeout=10.0,
+                )
+            except Exception as e:  # noqa: BLE001
+                log.warning("could not POST to %s/execute: %s", base, e)
+                await self.bc.publish(
+                    run.run_id,
+                    {"type": "log", "line": f"control-plane: worker POST failed: {e}"},
+                )
 
     async def _pull_window(self) -> Optional[np.ndarray]:
         """Pull the current 8x32 telemetry window from the collector."""
@@ -236,6 +253,34 @@ class RunManager:
                             },
                         )
                         break
+
+                # Benign timeout completion: the worker is a long-running
+                # FastAPI server that never exits on its own, so after
+                # run_timeout_sec with no kill we treat the run as successfully
+                # completed and tear the worker down.
+                elapsed = time.time() - run.started_at
+                if elapsed >= self.cfg.run_timeout_sec:
+                    run.status = STATUS_COMPLETED
+                    if run.worker is not None:
+                        run.worker.kill()
+                    await self.bc.publish(
+                        run.run_id,
+                        {
+                            "type": "tick",
+                            "score": run.score,
+                            "status": run.status,
+                            "stream1_last": s1[-1].tolist(),
+                        },
+                    )
+                    await self.bc.publish(
+                        run.run_id,
+                        {
+                            "type": "status",
+                            "status": STATUS_COMPLETED,
+                            "score": run.score,
+                        },
+                    )
+                    break
 
                 # Normal tick publish.
                 await self.bc.publish(

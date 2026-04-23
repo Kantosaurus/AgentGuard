@@ -43,20 +43,82 @@ def _proc_stat_total() -> float:
         return 0.0
 
 
-def _pid_utime_stime(pid: int) -> float:
-    """utime + stime for ``pid`` in jiffies. Returns 0.0 if the PID vanished."""
+def _read_stat_fields(pid: int) -> list[str] | None:
+    """Return the whitespace-split /proc/<pid>/stat fields starting from ``state``.
+
+    The ``comm`` field may contain spaces and parens, so we rsplit on the final
+    ") " to isolate the rest of the line; ``fields[0]`` is then ``state``.
+    Returns ``None`` if the PID has vanished or stat is unreadable.
+    """
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
     except (FileNotFoundError, PermissionError):
-        return 0.0
-    # /proc/<pid>/stat format: "pid (comm with spaces) state ppid ...".
-    # rsplit on ") " once so process names containing spaces don't shift fields.
+        return None
     try:
-        fields = stat.rsplit(") ", 1)[1].split()
-        utime, stime = int(fields[11]), int(fields[12])
+        return stat.rsplit(") ", 1)[1].split()
+    except IndexError:
+        return None
+
+
+def _pid_ppid(pid: int) -> int:
+    """Parent PID (0 if unreadable or root)."""
+    f = _read_stat_fields(pid)
+    if f is None or len(f) < 2:
+        return 0
+    try:
+        return int(f[1])   # fields[0]=state, fields[1]=ppid
+    except ValueError:
+        return 0
+
+
+def _pid_tree(root: int) -> list[int]:
+    """BFS the descendants of ``root`` and return [root, child, grandchild, ...].
+
+    stress-ng and any other subprocess the worker spawns shows up as a child of
+    the worker's uvicorn PID; we need to sum their CPU to see real resource
+    usage. Scanning /proc is O(num_pids) but only runs at 2 Hz so it's fine.
+    """
+    children: dict[int, list[int]] = {}
+    try:
+        all_pids = [int(p.name) for p in Path("/proc").iterdir() if p.name.isdigit()]
+    except (FileNotFoundError, PermissionError):
+        return [root]
+    for pid in all_pids:
+        ppid = _pid_ppid(pid)
+        if ppid > 0:
+            children.setdefault(ppid, []).append(pid)
+
+    tree = [root]
+    frontier = [root]
+    while frontier:
+        nxt = []
+        for p in frontier:
+            for c in children.get(p, []):
+                tree.append(c)
+                nxt.append(c)
+        frontier = nxt
+    return tree
+
+
+def _pid_utime_stime(pid: int) -> float:
+    """utime + stime for ``pid`` alone, in jiffies. Returns 0.0 if PID vanished."""
+    f = _read_stat_fields(pid)
+    if f is None:
+        return 0.0
+    try:
+        utime, stime = int(f[11]), int(f[12])
         return float(utime + stime)
     except (IndexError, ValueError):
         return 0.0
+
+
+def _pid_tree_utime_stime(root: int) -> float:
+    """Sum of utime+stime across ``root`` and all its descendant processes.
+
+    Needed because uvicorn (the container's PID 1) spawns subprocesses like
+    stress-ng whose CPU doesn't show up in the root's own stat.
+    """
+    return sum(_pid_utime_stime(p) for p in _pid_tree(root))
 
 
 def _mem_pct() -> float:
@@ -123,7 +185,7 @@ def sample_once(pid: int) -> dict[str, Any]:
         cpu_pct = 100 * Δ(utime + stime) / Δ(total jiffies)
     """
     now = time.time()
-    proc_cpu = _pid_utime_stime(pid)
+    proc_cpu = _pid_tree_utime_stime(pid)
     sys_cpu = _proc_stat_total()
     prev = _PREV_CPU.get(pid)
     _PREV_CPU[pid] = (proc_cpu, sys_cpu)

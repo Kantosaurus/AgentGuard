@@ -67,3 +67,9 @@ class Config:
     tick_sec: float = field(
         default_factory=lambda: _env_float("AGENTGUARD_TICK_SEC", 5.0)
     )
+    # Benign completion: the agent-worker is a long-running FastAPI server, so
+    # it doesn't exit after a behavior completes. If no kill fires within this
+    # many seconds, we flip the run to COMPLETED and tear the worker down.
+    run_timeout_sec: float = field(
+        default_factory=lambda: _env_float("AGENTGUARD_RUN_TIMEOUT_SEC", 60.0)
+    )
