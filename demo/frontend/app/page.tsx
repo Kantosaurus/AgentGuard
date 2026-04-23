@@ -147,7 +147,13 @@ export default function Page() {
       ].join(" ")}
     >
       {/* ───────────────────── Masthead ───────────────────── */}
-      <header className="flex flex-col gap-5">
+      {/* Whole masthead animates as one block. Inner type composition is
+          already a hierarchy; adding per-element stagger on top compounded
+          transforms and felt baroque. */}
+      <header
+        className="flex flex-col gap-5 motion-safe:animate-enter-up"
+        style={{ animationDelay: "0ms" }}
+      >
         <div className="flex items-start justify-between gap-6">
           <div className="flex flex-col gap-3 max-w-[58ch]">
             <span className="text-micro uppercase tracking-caps text-ink-muted font-sans font-medium">
@@ -170,15 +176,33 @@ export default function Page() {
             <ThemeToggle />
           </div>
         </div>
-        <div aria-hidden className="rule-strong" />
+        <div className="relative">
+          <div aria-hidden className="rule-strong" />
+          {/* Indeterminate running hairline — only visible between submit and
+              the first tick, so the page acknowledges the request without
+              dashboard chrome. Muted ink keeps it below the signal of the
+              data itself. */}
+          {running && scores.length === 0 && (
+            <div
+              aria-hidden
+              className="absolute inset-x-0 top-0 overflow-hidden h-px"
+            >
+              <div className="h-full w-1/4 bg-ink-muted motion-safe:animate-hairline-sweep" />
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ───────────────────── Prompt row ───────────────────── */}
-      <section aria-label="Submit a prompt" className="flex flex-col gap-4">
+      <section
+        aria-label="Submit a prompt"
+        className="flex flex-col gap-4 motion-safe:animate-enter-up"
+        style={{ animationDelay: "80ms" }}
+      >
         <PromptBar disabled={running} onSubmit={onSubmit} />
         {activePrompt && (
           <p
-            className="font-mono text-[12px] italic text-ink-faint pl-0.5 animate-fade-in"
+            className="font-mono text-[12px] italic text-ink-faint pl-0.5 motion-safe:animate-fade-in"
             aria-live="polite"
           >
             <span className="not-italic text-ink-muted">Now running · </span>
@@ -190,7 +214,8 @@ export default function Page() {
       {/* ───────────────────── Figure 1 + apparatus ───────────────────── */}
       <section
         aria-label="Live trace"
-        className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12"
+        className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 motion-safe:animate-enter-up"
+        style={{ animationDelay: "140ms" }}
       >
         <div className="lg:col-span-7">
           <ScoreChart
@@ -210,12 +235,19 @@ export default function Page() {
       </section>
 
       {/* ───────────────────── Figure 2: action log ───────────────────── */}
-      <section aria-label="Action log">
+      <section
+        aria-label="Action log"
+        className="motion-safe:animate-enter-up"
+        style={{ animationDelay: "200ms" }}
+      >
         <ActionLog lines={logs} />
       </section>
 
       {/* ───────────────────── Footer ───────────────────── */}
-      <footer className="flex flex-col gap-3 pt-2">
+      <footer
+        className="flex flex-col gap-3 pt-2 motion-safe:animate-enter-up"
+        style={{ animationDelay: "260ms" }}
+      >
         <div aria-hidden className="rule" />
         <p className="font-sans text-caption text-ink-muted leading-[1.7] max-w-[85ch]">
           <span className="text-ink">Model</span>
