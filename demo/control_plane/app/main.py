@@ -17,6 +17,7 @@ import os
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -46,6 +47,17 @@ class EventRequest(BaseModel):
 
 
 app = FastAPI(title="AgentGuard control plane", version="0.1.0")
+
+# The frontend is served on a different host port than the control plane
+# (:3001 vs :8000), so browsers treat /run and /runs/*/stream as cross-origin.
+# Allow any localhost origin — this is a dev demo, not a public service.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _cfg = Config()
 _bc = Broadcaster()
