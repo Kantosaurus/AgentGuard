@@ -1,0 +1,31 @@
+# Per-Dockerfile ignore (BuildKit). Frontend only needs demo/frontend.
+.git
+.github
+.vscode
+.claude
+.idea
+
+demo/frontend/node_modules
+demo/frontend/.next
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+
+# Python bits the frontend build doesn't need
+data
+models
+training
+baselines
+sweep
+results
+logs
+notebooks
+docs
+tests
+agentguard
+
+.DS_Store
+Thumbs.db

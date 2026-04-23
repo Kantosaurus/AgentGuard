@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir flask
 
-COPY app.py /app/app.py
+COPY demo/attacker_receiver/app.py /app/app.py
 
 EXPOSE 9090
 

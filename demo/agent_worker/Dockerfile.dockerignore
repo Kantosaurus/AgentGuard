@@ -1,0 +1,34 @@
+# Per-Dockerfile ignore (BuildKit). Worker image needs data/preprocessing.py
+# and models/, but does NOT need the dataset or training checkpoints.
+.git
+.github
+.vscode
+.claude
+.idea
+
+demo/frontend/node_modules
+demo/frontend/.next
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.venv
+venv
+env
+
+# Worker never loads a model; exclude all training artefacts.
+data/processed
+data/dataset
+
+results
+logs
+sweep/runs
+sweep/artifacts
+notebooks
+docs
+
+.DS_Store
+Thumbs.db

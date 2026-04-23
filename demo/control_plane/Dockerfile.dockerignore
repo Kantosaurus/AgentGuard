@@ -1,0 +1,38 @@
+# Per-Dockerfile ignore (BuildKit >= 19.03). Keeps context slim for the
+# control-plane build even though the build context is the repo root.
+.git
+.github
+.vscode
+.claude
+.idea
+
+demo/frontend/node_modules
+demo/frontend/.next
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.venv
+venv
+env
+
+# Training artefacts the control-plane runtime does NOT need.
+# Keep: data/processed/checkpoints/best_model.pt (loaded at startup),
+#       config.yml, models/, data/preprocessing.py.
+data/processed/agent-*.pt
+data/processed/checkpoints/best_model_fold*.pt
+data/processed/checkpoints/model_seed*.pt
+
+data/dataset
+results
+logs
+sweep/runs
+sweep/artifacts
+notebooks
+docs
+
+.DS_Store
+Thumbs.db

@@ -21,8 +21,22 @@ import sys
 import time
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-OUT_PATH = REPO_ROOT / "demo" / "shared" / "baseline_windows.npy"
+# Resolve the output path:
+#   - When run from the host (file lives at demo/control_plane/scripts/capture_baseline.py),
+#     parents[3] is the repo root and we write demo/shared/baseline_windows.npy directly.
+#   - When run inside the control-plane container the script sits at /app/scripts/,
+#     which has only two parents; we fall back to the AGENTGUARD_BASELINE env var
+#     (the control-plane volume-mounts demo/shared at /app/shared), and if even
+#     that's missing we write to /tmp.
+_script = Path(__file__).resolve()
+try:
+    _repo_root = _script.parents[3]
+    _default_out = _repo_root / "demo" / "shared" / "baseline_windows.npy"
+except IndexError:
+    _default_out = Path(
+        os.environ.get("AGENTGUARD_BASELINE", "/app/shared/baseline_windows.npy")
+    )
+OUT_PATH = Path(os.environ.get("AGENTGUARD_BASELINE_OUT", str(_default_out)))
 
 # Network + image names must match demo/docker-compose.yml (Phase 6 wiring).
 NETWORK_NAME = os.environ.get("AGENTGUARD_DEMO_NETWORK", "agentguard-demo-net")

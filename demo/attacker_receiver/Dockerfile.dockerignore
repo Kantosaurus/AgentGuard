@@ -1,0 +1,25 @@
+# Per-Dockerfile ignore (BuildKit). Attacker only needs a single app.py.
+.git
+.github
+.vscode
+.claude
+.idea
+
+demo/frontend/node_modules
+demo/frontend/.next
+
+**/__pycache__
+**/*.pyc
+
+# Python bits the attacker build doesn't need
+data
+models
+training
+baselines
+sweep
+results
+logs
+notebooks
+docs
+tests
+agentguard

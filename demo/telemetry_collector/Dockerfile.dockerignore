@@ -1,0 +1,33 @@
+# Per-Dockerfile ignore (BuildKit). Telemetry-collector only needs
+# data/preprocessing.py (and transitively, models/ for imports). No checkpoints.
+.git
+.github
+.vscode
+.claude
+.idea
+
+demo/frontend/node_modules
+demo/frontend/.next
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+.venv
+venv
+env
+
+data/processed
+data/dataset
+
+results
+logs
+sweep/runs
+sweep/artifacts
+notebooks
+docs
+
+.DS_Store
+Thumbs.db

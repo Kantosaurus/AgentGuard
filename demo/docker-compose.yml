@@ -1,21 +1,59 @@
 services:
   frontend:
-    image: busybox
-    command: ["sh", "-c", "echo frontend stub && sleep infinity"]
+    build:
+      context: ..
+      dockerfile: demo/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_CONTROL_PLANE: http://localhost:8000
+    image: agentguard-frontend:latest
     ports: ["3000:3000"]
+    depends_on: [control-plane]
+
   control-plane:
-    image: busybox
-    command: ["sh", "-c", "echo control-plane stub && sleep infinity"]
+    build:
+      context: ..
+      dockerfile: demo/control_plane/Dockerfile
+    image: agentguard-control-plane:latest
     ports: ["8000:8000"]
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+      - ./shared:/app/shared:ro
+    environment:
+      AGENTGUARD_THRESHOLD: "${AGENTGUARD_THRESHOLD:-0.5}"
+      AGENTGUARD_WORKER_IMAGE: agentguard-agent-worker:latest
+      AGENTGUARD_NETWORK: agentguard-demo-net
+      AGENTGUARD_TELEMETRY: http://telemetry-collector:8100
+      AGENTGUARD_BASELINE: /app/shared/baseline_windows.npy
+      AGENTGUARD_NORM: /app/shared/norm_stats.json
+    # Note: agent-worker-template isn't in depends_on because it's build-only
+    # (see profiles below) — it only exists to keep its image tag built.
+    depends_on: [telemetry-collector, attacker-receiver]
+
   agent-worker-template:
-    image: busybox
-    command: ["sh", "-c", "echo worker stub && sleep infinity"]
+    build:
+      context: ..
+      dockerfile: demo/agent_worker/Dockerfile
+    image: agentguard-agent-worker:latest
+    command: ["sh", "-c", "echo 'template image; real workers are spawned per-run' && sleep infinity"]
+    profiles: ["build-only"]
+
   telemetry-collector:
-    image: busybox
-    command: ["sh", "-c", "echo telemetry stub && sleep infinity"]
+    build:
+      context: ..
+      dockerfile: demo/telemetry_collector/Dockerfile
+    image: agentguard-telemetry:latest
+    ports: ["8100:8100"]
+    pid: "host"
+    environment:
+      LOG_LEVEL: info
+
   attacker-receiver:
-    image: busybox
-    command: ["sh", "-c", "echo attacker stub && sleep infinity"]
+    build:
+      context: ..
+      dockerfile: demo/attacker_receiver/Dockerfile
+    image: agentguard-attacker:latest
+    ports: ["9090:9090"]
+
 networks:
   default:
     name: agentguard-demo-net
