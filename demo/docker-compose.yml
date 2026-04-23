@@ -1,0 +1,21 @@
+services:
+  frontend:
+    image: busybox
+    command: ["sh", "-c", "echo frontend stub && sleep infinity"]
+    ports: ["3000:3000"]
+  control-plane:
+    image: busybox
+    command: ["sh", "-c", "echo control-plane stub && sleep infinity"]
+    ports: ["8000:8000"]
+  agent-worker-template:
+    image: busybox
+    command: ["sh", "-c", "echo worker stub && sleep infinity"]
+  telemetry-collector:
+    image: busybox
+    command: ["sh", "-c", "echo telemetry stub && sleep infinity"]
+  attacker-receiver:
+    image: busybox
+    command: ["sh", "-c", "echo attacker stub && sleep infinity"]
+networks:
+  default:
+    name: agentguard-demo-net

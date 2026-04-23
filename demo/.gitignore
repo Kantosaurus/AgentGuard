@@ -1,0 +1,4 @@
+shared/baseline_windows.npy.tmp
+node_modules
+.venv
+.env
