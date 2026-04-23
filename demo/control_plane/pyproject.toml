@@ -11,6 +11,7 @@ dependencies = [
   "torch>=2.4.0",
   "numpy>=2.2.6",
   "pyyaml>=6.0.3",
+  "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
@@ -23,3 +24,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+  "slow: long-running tests (loads the model)",
+  "docker: tests that require a live docker daemon",
+]
