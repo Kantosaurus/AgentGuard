@@ -6,6 +6,7 @@ DNS name (``agent-worker-<run_id>``).
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 import docker
@@ -80,9 +81,44 @@ class Orchestrator:
                 "agentguard.run_id": run_id,
                 "agentguard.role": "agent-worker",
             },
+            # Task 14: compose-level egress restrictions. Resolve known
+            # exfil-bait domains to the in-cluster attacker-receiver so the
+            # LLM tool-calls hit our honeypot instead of the open internet.
+            extra_hosts={
+                "attacker.example.com": "attacker-receiver",
+                "c2.example.com": "attacker-receiver",
+                "evil.example.com": "attacker-receiver",
+            },
+            # Drop every Linux capability and forbid privilege escalation.
+            cap_drop=["ALL"],
+            security_opt=["no-new-privileges:true"],
+            # Read-only root FS + writable tmpfs for /tmp. Combined with
+            # PYTHONDONTWRITEBYTECODE=1 below to keep CPython happy.
+            read_only=True,
+            tmpfs={"/tmp": "rw,nosuid,size=64m"},
             environment={
+                # Legacy names kept for backward compatibility with any
+                # consumer that hasn't been updated to the Task 14 schema.
                 "AGENTGUARD_RUN_ID": run_id,
                 "AGENTGUARD_CONTROL_PLANE": "http://control-plane:8000",
+                # Task 14 worker contract.
+                "RUN_ID": run_id,
+                "AGENT_MODE": os.environ.get("AGENT_MODE", "llm"),
+                "LLM_CLIENT": os.environ.get("LLM_CLIENT", "minimax"),
+                "AGENT_MODEL": os.environ.get("AGENT_MODEL", "minimax-m2.7"),
+                "AGENT_OAUTH_TOKEN": os.environ.get("AGENT_OAUTH_TOKEN", ""),
+                "AGENT_OAUTH_REFRESH_URL": os.environ.get(
+                    "AGENT_OAUTH_REFRESH_URL", ""
+                ),
+                "ATTACKER_RECEIVER_URL": "http://attacker-receiver:9090",
+                "CONTROL_PLANE_URL": "http://control-plane:8000",
+                "AGENT_MAX_STEPS": os.environ.get("AGENT_MAX_STEPS", "25"),
+                "AGENT_MAX_TOKENS_PER_STEP": os.environ.get(
+                    "AGENT_MAX_TOKENS_PER_STEP", "2048"
+                ),
+                # Required for read_only=True so CPython doesn't EROFS on
+                # __pycache__ writes during import.
+                "PYTHONDONTWRITEBYTECODE": "1",
             },
         )
         c.reload()
