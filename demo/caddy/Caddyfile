@@ -1,0 +1,18 @@
+# demo/caddy/Caddyfile
+{$DOMAIN} {
+    encode gzip
+    basicauth * {
+        demo {$BASIC_AUTH_HASH}
+    }
+    @api path /run /events /window /healthz /stream/*
+    handle @api {
+        reverse_proxy control-plane:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+    log {
+        output stdout
+        format json
+    }
+}

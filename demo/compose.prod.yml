@@ -1,0 +1,49 @@
+# demo/compose.prod.yml
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - control-plane
+    environment:
+      DOMAIN: ${DOMAIN}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: demo/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_CONTROL_PLANE: https://${DOMAIN}
+    ports: []
+
+  control-plane:
+    ports: []
+    environment:
+      AGENT_MODE: ${AGENT_MODE:-llm}
+      AGENT_MODEL: ${AGENT_MODEL:-minimax-m2.7}
+      AGENT_OAUTH_TOKEN: ${AGENT_OAUTH_TOKEN}
+      AGENT_OAUTH_REFRESH_URL: ${AGENT_OAUTH_REFRESH_URL:-}
+      AGENT_MAX_STEPS: "25"
+      AGENT_MAX_TOKENS_PER_STEP: "2048"
+      AGENT_MONTHLY_USD_CAP: "30"
+      AGENTGUARD_THRESHOLD: ${AGENTGUARD_THRESHOLD:-0.45}
+      LLM_CLIENT: ${LLM_CLIENT:-minimax}
+
+  attacker-receiver:
+    ports: []
+
+  telemetry-collector:
+    ports: []
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
