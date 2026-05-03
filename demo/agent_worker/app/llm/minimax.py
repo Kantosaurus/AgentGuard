@@ -114,7 +114,8 @@ class MinimaxM27Client(LLMClient):
         return body
 
     async def _refresh(self, client: httpx.AsyncClient) -> None:
-        assert self.refresh_url is not None
+        if self.refresh_url is None:
+            raise LLMAuthError("refresh requested but refresh_url is not configured")
         resp = await client.post(self.refresh_url,
                                  data={"refresh_token": self.oauth_token})
         if resp.status_code >= 400:
