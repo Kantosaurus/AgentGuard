@@ -18,6 +18,21 @@ class Tool(ABC):
     is_external: ClassVar[bool]
     parameters: ClassVar[dict[str, Any]]
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        # Skip the check for further-abstract subclasses (would only matter
+        # if someone defines an intermediate ABC; the eight production tools
+        # are concrete leaves).
+        if getattr(cls, "__abstractmethods__", None):
+            return
+        for attr in ("name", "description", "is_external", "parameters"):
+            if attr not in cls.__dict__ and not any(
+                attr in base.__dict__ for base in cls.__mro__[1:-1]
+            ):
+                raise TypeError(
+                    f"{cls.__name__} is missing required Tool class attribute {attr!r}"
+                )
+
     def schema(self) -> ToolSchema:
         return ToolSchema(
             name=self.name,

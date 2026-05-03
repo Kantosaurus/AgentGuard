@@ -55,3 +55,19 @@ def test_tool_error_is_exception():
     err = ToolError("bad")
     assert str(err) == "bad"
     assert isinstance(err, Exception)
+
+
+def test_contains():
+    reg = ToolRegistry()
+    reg.register(_DummyTool())
+    assert "dummy" in reg
+    assert "missing" not in reg
+
+
+def test_subclass_missing_attribute_raises():
+    with pytest.raises(TypeError, match="is missing required Tool class attribute"):
+        class _BrokenTool(Tool):
+            # missing description, is_external, parameters
+            name = "broken"
+            async def run(self, run_id: str, **kwargs):
+                return ""
