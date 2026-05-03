@@ -17,11 +17,22 @@ from .minimax import MinimaxM27Client
 def from_env() -> LLMClient:
     """Construct the appropriate LLMClient based on env.
 
-    LLM_CLIENT=fake -> FakeLLMClient (with empty queue; tests inject their own).
+    LLM_CLIENT=fake -> FakeLLMClient. If ``LLM_CANNED_QUEUE_PATH`` is also set,
+    that env var is treated as a Python module path (e.g.
+    ``canned_choices.q2_plan``) which exposes a ``queue() -> list[Choice]``
+    callable; the returned list is used to seed the FakeLLMClient. With no
+    canned-queue path the FakeLLMClient is constructed with an empty queue
+    (the caller is expected to inject one).
     LLM_CLIENT=minimax (default) -> MinimaxM27Client from AGENT_* env vars.
     """
     kind = os.environ.get("LLM_CLIENT", "minimax").lower()
     if kind == "fake":
+        path = os.environ.get("LLM_CANNED_QUEUE_PATH", "").strip()
+        if path:
+            import importlib
+
+            mod = importlib.import_module(path)
+            return FakeLLMClient(mod.queue())
         return FakeLLMClient([])
     if kind == "minimax":
         return MinimaxM27Client(

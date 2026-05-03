@@ -27,6 +27,13 @@ ENV PYTHONPATH=/workspace
 # Copy worker project (app/, fixtures/, tests/)
 COPY demo/agent_worker/ /app/
 
+# Bake the integration-test canned LLM Choice queues into the image so the
+# worker can `import canned_choices.<name>` when LLM_CLIENT=fake +
+# LLM_CANNED_QUEUE_PATH=canned_choices.<name> are set. /app is already on
+# sys.path because uvicorn runs from /app, so canned_choices is importable
+# as a top-level package.
+COPY demo/tests/canned_choices /app/canned_choices
+
 # --- hardening for the live demo --------------------------------------------
 # 1. Redirect injection-target hostnames to the in-cluster receiver. The
 #    entrypoint will merge from /etc/hosts.append; on read-only mounts this

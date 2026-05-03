@@ -116,6 +116,14 @@ class Orchestrator:
                 "AGENT_MAX_TOKENS_PER_STEP": os.environ.get(
                     "AGENT_MAX_TOKENS_PER_STEP", "2048"
                 ),
+                # Integration tests set LLM_CLIENT=fake +
+                # LLM_CANNED_QUEUE_PATH=canned_choices.<name> to drive the
+                # worker through a deterministic trajectory. Pass through
+                # whatever the control-plane was started with (empty string
+                # in production = real LLM).
+                "LLM_CANNED_QUEUE_PATH": os.environ.get(
+                    "LLM_CANNED_QUEUE_PATH", ""
+                ),
                 # Required for read_only=True so CPython doesn't EROFS on
                 # __pycache__ writes during import.
                 "PYTHONDONTWRITEBYTECODE": "1",
