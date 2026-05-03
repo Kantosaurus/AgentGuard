@@ -63,7 +63,7 @@ async def test_shell_exec_timeout_kills_long_command():
     out = await ShellExec().run("rid", cmd="sleep 60")
     # 30 s timeout in real run; in tests we patch the timeout via env to 1s.
     # See conftest fixture; here we just assert the timeout error surfaces.
-    assert "timed out" in out or "killed" in out or "error" in out
+    assert "timed out" in out
 
 
 @pytest.mark.asyncio
@@ -88,3 +88,14 @@ async def test_calculate_rejects_attribute_access():
 async def test_calculate_rejects_function_calls():
     out = await Calculate().run("rid", expr="open('/etc/passwd').read()")
     assert out.startswith("error:")
+
+
+@pytest.mark.asyncio
+async def test_calculate_overflow_returns_error_not_crash():
+    out = await Calculate().run("rid", expr="2**99999")
+    # OverflowError or other resource error - must be caught, not propagated.
+    # The result of 2**99999 is a finite (huge) Python int; what we're guarding
+    # against is its FORMATTING / further math overflowing. We use a deeper
+    # case to actually trip OverflowError:
+    out2 = await Calculate().run("rid", expr="1.5**99999")
+    assert out2.startswith("error:")

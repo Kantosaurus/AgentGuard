@@ -39,8 +39,9 @@ class Calculate(Tool):
         try:
             tree = ast.parse(expr, mode="eval")
             result = _eval(tree.body)
-        except (SyntaxError, ValueError, ZeroDivisionError) as e:
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+            return str(result)
+        except (SyntaxError, ValueError, ZeroDivisionError,
+                RecursionError, OverflowError, MemoryError) as e:
             return f"error: {e}"
-        if isinstance(result, float) and result.is_integer():
-            result = int(result)
-        return str(result)
