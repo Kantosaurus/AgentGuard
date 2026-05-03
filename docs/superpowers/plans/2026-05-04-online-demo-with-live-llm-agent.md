@@ -1810,7 +1810,7 @@ stack to a TLS-terminated, basic-auth-gated public site.
     basicauth * {
         demo {$BASIC_AUTH_HASH}
     }
-    @api path /run /events /window /healthz /stream/*
+    @api path /run /events /health /runs/*
     handle @api {
         reverse_proxy control-plane:8000
     }
