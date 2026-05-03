@@ -88,8 +88,20 @@ class RunManager:
             retry = max(0, int(self.cfg.run_timeout_sec - elapsed))
             raise RunBusy(retry_after_sec=retry)
 
+        # Reserve the slot synchronously, before any await, to close the
+        # TOCTOU race where a second concurrent start_run could see an empty
+        # self.runs while the first one was awaiting telemetry. The worker
+        # handle and buffers are filled in below; the placeholder Run is
+        # enough to make _active_run_id() return this rid for any concurrent
+        # caller.
         rid = uuid.uuid4().hex[:10]
+        run = Run(run_id=rid)
+        self.runs[rid] = run
+
         handle = self.orch.start_worker(rid)
+        run.worker = handle
+        run.s1 = Stream1Buffer.from_baseline(self.baseline)
+        run.s2 = Stream2Buffer(max_len=64, dim=28)
 
         # Point telemetry-collector at the worker's PID. Best-effort: the
         # collector may not be up (unit tests), in which case we log and move
@@ -102,13 +114,6 @@ class RunManager:
         except Exception as e:  # noqa: BLE001
             log.warning("could not reach telemetry-collector: %s", e)
 
-        run = Run(
-            run_id=rid,
-            worker=handle,
-            s1=Stream1Buffer.from_baseline(self.baseline),
-            s2=Stream2Buffer(max_len=64, dim=28),
-        )
-        self.runs[rid] = run
         asyncio.create_task(self._run_loop(run, prompt))
         return rid
 

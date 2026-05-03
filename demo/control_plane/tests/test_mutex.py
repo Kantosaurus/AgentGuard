@@ -30,7 +30,7 @@ class _NoopScorer:
 
 
 @pytest.mark.asyncio
-async def test_second_start_while_busy_raises_runbusy(monkeypatch, tmp_path):
+async def test_second_start_while_busy_raises_runbusy(tmp_path):
     cfg = Config()
     # Config is a frozen dataclass; bypass with object.__setattr__ so the
     # scorer/baseline loaders look at a tmp path rather than the prod default.
@@ -47,7 +47,7 @@ async def test_second_start_while_busy_raises_runbusy(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_start_after_completion_succeeds(tmp_path, monkeypatch):
+async def test_start_after_completion_succeeds(tmp_path):
     cfg = Config()
     # Config is a frozen dataclass; bypass with object.__setattr__ so the
     # scorer/baseline loaders look at a tmp path rather than the prod default.
@@ -60,3 +60,26 @@ async def test_start_after_completion_succeeds(tmp_path, monkeypatch):
 
     rid2 = await rm.start_run("p2")
     assert rid2 != rid1
+
+
+import asyncio
+
+
+@pytest.mark.asyncio
+async def test_concurrent_starts_only_one_succeeds(tmp_path, monkeypatch):
+    cfg = Config()
+    object.__setattr__(cfg, "checkpoint_path", str(tmp_path / "fake.pt"))
+    bc = Broadcaster()
+    rm = RunManager(cfg, bc, scorer=_NoopScorer(), orchestrator=_FakeOrch())
+
+    # Two concurrent start_run calls. Exactly one must succeed; the other must
+    # raise RunBusy.
+    results = await asyncio.gather(
+        rm.start_run("p1"),
+        rm.start_run("p2"),
+        return_exceptions=True,
+    )
+    successes = [r for r in results if isinstance(r, str)]
+    busy_errors = [r for r in results if isinstance(r, RunBusy)]
+    assert len(successes) == 1, f"expected 1 success, got {results!r}"
+    assert len(busy_errors) == 1, f"expected 1 RunBusy, got {results!r}"
