@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .config import Config
-from .errors import RunBusy
+from .errors import MonthlyCapReached, RunBusy
 from .runs import RunManager
 from .sse import Broadcaster, sse_format
 
@@ -113,12 +113,30 @@ async def start_run(req: RunRequest) -> RunResponse:
     rm = _require_rm()
     try:
         rid = await rm.start_run(req.prompt)
+    except MonthlyCapReached:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "monthly_cap_reached"},
+        )
     except RunBusy as e:
         raise HTTPException(
             status_code=409,
             detail={"error": "busy", "retry_after": e.retry_after_sec},
         )
     return RunResponse(run_id=rid)
+
+
+class UsageRequest(BaseModel):
+    run_id: str
+    tokens_in: int = 0
+    tokens_out: int = 0
+
+
+@app.post("/usage")
+async def post_usage(req: UsageRequest) -> dict:
+    rm = _require_rm()
+    rm.cost.record(input_tokens=req.tokens_in, output_tokens=req.tokens_out)
+    return {"ok": True, "month_total_usd": rm.cost.month_total_usd}
 
 
 @app.post("/events")

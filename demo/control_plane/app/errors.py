@@ -7,3 +7,7 @@ class RunBusy(Exception):
     def __init__(self, retry_after_sec: int) -> None:
         super().__init__("run already in progress")
         self.retry_after_sec = retry_after_sec
+
+
+class MonthlyCapReached(Exception):
+    """Raised when the rolling-month token spend has exceeded AGENT_MONTHLY_USD_CAP."""

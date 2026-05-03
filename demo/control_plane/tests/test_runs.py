@@ -12,6 +12,7 @@ import pytest
 
 from app.buffers import Stream1Buffer, Stream2Buffer
 from app.config import Config
+from app.cost import CostTracker
 from app.orchestrator import WorkerHandle
 from app.runs import (
     RunManager,
@@ -88,6 +89,7 @@ def _make_rm(
     rm.scorer = scorer
     rm.baseline = np.zeros((8, 32), dtype=np.float32)
     rm.runs = {}
+    rm.cost = CostTracker(cap_usd=1e9)
     return rm, orch, scorer, bc
 
 

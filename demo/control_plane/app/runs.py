@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -25,6 +26,7 @@ import numpy as np
 from .baseline import load_baseline, load_norm
 from .buffers import Stream1Buffer, Stream2Buffer
 from .config import Config
+from .cost import CostTracker
 from .errors import RunBusy
 from .inference import Scorer
 from .orchestrator import Orchestrator, WorkerHandle
@@ -70,6 +72,8 @@ class RunManager:
         self.scorer = scorer if scorer is not None else Scorer(cfg, mean, std)
         self.baseline = load_baseline(cfg)
         self.runs: Dict[str, Run] = {}
+        cap = float(os.environ.get("AGENT_MONTHLY_USD_CAP", "30"))
+        self.cost = CostTracker(cap_usd=cap)
 
     # ------------------------------------------------------------------ public
 
@@ -81,6 +85,7 @@ class RunManager:
         return None
 
     async def start_run(self, prompt: str) -> str:
+        self.cost.check()
         active = self._active_run_id()
         if active is not None:
             existing = self.runs[active]
