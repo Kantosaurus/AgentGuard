@@ -27,6 +27,26 @@ ENV PYTHONPATH=/workspace
 # Copy worker project (app/, fixtures/, tests/)
 COPY demo/agent_worker/ /app/
 
+# --- hardening for the live demo --------------------------------------------
+# 1. Redirect injection-target hostnames to the in-cluster receiver. The
+#    entrypoint will merge from /etc/hosts.append; on read-only mounts this
+#    silently no-ops and Compose-level extra_hosts (Task 14) covers the case.
+RUN printf 'attacker-receiver attacker.example.com c2.example.com evil.example.com\n' \
+        >> /etc/hosts.append
+
+# 2. Non-root user with /tmp scratch. chown after all COPYs so the worker user
+#    actually owns the source it executes.
+RUN useradd --no-create-home --shell /usr/sbin/nologin --uid 10001 worker \
+ && chown -R worker:worker /app
+
+# 3. Entrypoint that merges /etc/hosts.append into /etc/hosts, then execs.
+#    COPY happens as root (Docker COPY ignores USER), so the file is owned by
+#    root mode 644 — readable + executable by the non-root worker user.
+COPY demo/agent_worker/entrypoint.sh /entrypoint.sh
+
+USER worker
+
 EXPOSE 8200
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8200"]
