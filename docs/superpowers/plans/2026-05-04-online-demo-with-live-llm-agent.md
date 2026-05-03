@@ -3917,7 +3917,7 @@ def caddy_up(request):
     ], cwd=ROOT, env=env)
     for _ in range(30):
         try:
-            urllib.request.urlopen("https://localhost/healthz",
+            urllib.request.urlopen("https://localhost/health",
                                    timeout=2, context=__import__('ssl')._create_unverified_context())
             break
         except Exception:
@@ -3945,7 +3945,7 @@ def test_no_creds_returns_401(caddy_up):
 def test_with_creds_returns_200(caddy_up):
     auth = base64.b64encode(b"demo:demo").decode()
     req = urllib.request.Request(
-        "https://localhost/healthz",
+        "https://localhost/health",
         headers={"Authorization": f"Basic {auth}"},
     )
     with urllib.request.urlopen(req, timeout=3, context=_ssl_ctx()) as r:
