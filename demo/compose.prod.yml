@@ -23,10 +23,10 @@ services:
       dockerfile: demo/frontend/Dockerfile
       args:
         NEXT_PUBLIC_CONTROL_PLANE: https://${DOMAIN}
-    ports: []
+    ports: !reset []
 
   control-plane:
-    ports: []
+    ports: !reset []
     environment:
       AGENT_MODE: ${AGENT_MODE:-llm}
       AGENT_MODEL: ${AGENT_MODEL:-minimax-m2.7}
@@ -39,10 +39,10 @@ services:
       LLM_CLIENT: ${LLM_CLIENT:-minimax}
 
   attacker-receiver:
-    ports: []
+    ports: !reset []
 
   telemetry-collector:
-    ports: []
+    ports: !reset []
 
 volumes:
   caddy_data: {}
