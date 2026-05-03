@@ -4,12 +4,13 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { ActionLog } from "@/components/action-log";
+import { BusyBanner } from "@/components/busy-banner";
 import { PromptBar } from "@/components/prompt-bar";
 import { ScoreChart } from "@/components/score-chart";
 import { StatusBadge } from "@/components/status-badge";
 import { Telemetry } from "@/components/telemetry";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getHealth, postRun, subscribeStream } from "@/lib/api";
+import { BusyError, getHealth, postRun, subscribeStream } from "@/lib/api";
 import { FEATURE_INDEX } from "@/lib/feature-map";
 import type {
   DemoEvent,
@@ -33,6 +34,10 @@ export default function Page() {
   const [running, setRunning] = React.useState(false);
   const [activePrompt, setActivePrompt] = React.useState<string | null>(null);
   const [threshold, setThreshold] = React.useState(DEFAULT_THRESHOLD);
+  const [busy, setBusy] = React.useState(false);
+  const [busyRetryAfter, setBusyRetryAfter] = React.useState<number | undefined>(
+    undefined,
+  );
 
   const esRef = React.useRef<EventSource | null>(null);
 
@@ -119,6 +124,9 @@ export default function Page() {
   const onSubmit = React.useCallback(
     async (prompt: string) => {
       resetState();
+      // Clear any prior 409 banner the moment the user tries again.
+      setBusy(false);
+      setBusyRetryAfter(undefined);
       setRunning(true);
       setActivePrompt(prompt);
       try {
@@ -127,6 +135,13 @@ export default function Page() {
           /* transient; terminal status event is authoritative. */
         });
       } catch (err) {
+        if (err instanceof BusyError) {
+          setBusy(true);
+          setBusyRetryAfter(err.retryAfter);
+          setRunning(false);
+          setActivePrompt(null);
+          return;
+        }
         const msg = err instanceof Error ? err.message : String(err);
         toast.error("Failed to start run", { description: msg });
         setRunning(false);
@@ -137,6 +152,18 @@ export default function Page() {
   );
 
   React.useEffect(() => closeStream, [closeStream]);
+
+  // Auto-clear the busy banner once retry_after has elapsed (or after a short
+  // default), so the user isn't permanently locked out of the prompt bar.
+  React.useEffect(() => {
+    if (!busy) return;
+    const ms = Math.max(1, busyRetryAfter ?? 5) * 1000;
+    const id = window.setTimeout(() => {
+      setBusy(false);
+      setBusyRetryAfter(undefined);
+    }, ms);
+    return () => window.clearTimeout(id);
+  }, [busy, busyRetryAfter]);
 
   return (
     <main
@@ -199,7 +226,8 @@ export default function Page() {
         className="flex flex-col gap-4 motion-safe:animate-enter-up"
         style={{ animationDelay: "80ms" }}
       >
-        <PromptBar disabled={running} onSubmit={onSubmit} />
+        <BusyBanner visible={busy} retryAfterSec={busyRetryAfter} />
+        <PromptBar disabled={running || busy} onSubmit={onSubmit} />
         {activePrompt && (
           <p
             className="font-mono text-[12px] italic text-ink-faint pl-0.5 motion-safe:animate-fade-in"
