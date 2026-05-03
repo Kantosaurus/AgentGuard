@@ -40,9 +40,10 @@ RUN useradd --no-create-home --shell /usr/sbin/nologin --uid 10001 worker \
  && chown -R worker:worker /app
 
 # 3. Entrypoint that merges /etc/hosts.append into /etc/hosts, then execs.
-#    COPY happens as root (Docker COPY ignores USER), so the file is owned by
-#    root mode 644 — readable + executable by the non-root worker user.
+#    COPY happens as root (Docker COPY ignores USER). chmod is defensive: git
+#    on Windows can lose the +x bit, so we don't rely on the source's mode.
 COPY demo/agent_worker/entrypoint.sh /entrypoint.sh
+RUN chmod 0755 /entrypoint.sh
 
 USER worker
 
