@@ -38,4 +38,6 @@ class WriteFile(Tool):
             target.write_text(content)
         except OSError as e:
             return f"error: {e}"
+        if target != Path(path):
+            return f"ok: wrote {len(content)} bytes to {target} (redirected from {path})"
         return f"ok: wrote {len(content)} bytes to {target}"

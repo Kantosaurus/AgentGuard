@@ -30,7 +30,4 @@ class ReadFile(Tool):
             return f"error: permission denied: {path}"
         except OSError as e:
             return f"error: {e}"
-        try:
-            return data[:_MAX_BYTES].decode("utf-8", errors="replace")
-        except Exception as e:
-            return f"error: decode: {e}"
+        return data[:_MAX_BYTES].decode("utf-8", errors="replace")

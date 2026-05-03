@@ -48,6 +48,7 @@ async def test_write_file_redirects_outside_tmp_to_basename_in_tmp(tmp_path: Pat
     monkeypatch.setenv("WRITE_FILE_TMP", str(tmp_path))
     out = await WriteFile().run("rid", path="/etc/cron.d/foo", content="data")
     assert "ok" in out
+    assert "redirected from" in out
     assert (tmp_path / "foo").read_text() == "data"
 
 
