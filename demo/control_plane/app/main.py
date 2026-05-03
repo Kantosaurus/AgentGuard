@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .config import Config
+from .errors import RunBusy
 from .runs import RunManager
 from .sse import Broadcaster, sse_format
 
@@ -110,7 +111,13 @@ async def health() -> dict:
 @app.post("/run", response_model=RunResponse)
 async def start_run(req: RunRequest) -> RunResponse:
     rm = _require_rm()
-    rid = await rm.start_run(req.prompt)
+    try:
+        rid = await rm.start_run(req.prompt)
+    except RunBusy as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"error": "busy", "retry_after": e.retry_after_sec},
+        )
     return RunResponse(run_id=rid)
 
 

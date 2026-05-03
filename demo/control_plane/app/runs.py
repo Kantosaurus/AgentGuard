@@ -25,6 +25,7 @@ import numpy as np
 from .baseline import load_baseline, load_norm
 from .buffers import Stream1Buffer, Stream2Buffer
 from .config import Config
+from .errors import RunBusy
 from .inference import Scorer
 from .orchestrator import Orchestrator, WorkerHandle
 from .sse import Broadcaster
@@ -72,7 +73,21 @@ class RunManager:
 
     # ------------------------------------------------------------------ public
 
+    def _active_run_id(self) -> Optional[str]:
+        """Return the run_id of the currently-active (non-terminal) run, or None."""
+        for rid, run in self.runs.items():
+            if run.status not in _TERMINAL:
+                return rid
+        return None
+
     async def start_run(self, prompt: str) -> str:
+        active = self._active_run_id()
+        if active is not None:
+            existing = self.runs[active]
+            elapsed = time.time() - existing.started_at
+            retry = max(0, int(self.cfg.run_timeout_sec - elapsed))
+            raise RunBusy(retry_after_sec=retry)
+
         rid = uuid.uuid4().hex[:10]
         handle = self.orch.start_worker(rid)
 
